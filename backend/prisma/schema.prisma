@@ -1,0 +1,359 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String            @id @default(uuid())
+  sevispassUid         String            @unique
+  name                 String
+  dateOfBirth          DateTime
+  province             String
+  phone                String?
+  occupation           String?
+  profilePhoto         String?
+  role                 String            @default("OWNER")
+  verificationStatus   String            @default("verified")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  
+  // Relations
+  legacyProfile        LegacyProfile?
+  legacyItems          LegacyItem[]
+  successorNominations Successor[]        @relation("SuccessorNominations")
+  successorOf          Successor[]        @relation("SuccessorOf")
+  witnessRecords       Witness[]          @relation("WitnessRecords")
+  ledgerEntries        LedgerEntry[]
+  successionEvents     SuccessionEvent[]
+  estates              Estate[]           @relation("EstateOwner")
+  executorOf           Estate[]           @relation("EstateExecutor")
+  beneficiaryOf        Beneficiary[]
+  estateWitness        EstateWitness[]
+  digitalWillWitness   WillWitness[]
+  notifications        Notification[]
+  activityLogs         ActivityLog[]
+  institutionRequests  InstitutionRequest[]
+  
+  @@map("users")
+}
+
+model LegacyProfile {
+  id             String      @id @default(uuid())
+  userId         String      @unique
+  title          String
+  description    String?
+  culturalNotes  String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  // Relations
+  user           User        @relation(fields: [userId], references: [id])
+  items          LegacyItem[]
+  successors     Successor[]
+  witnesses      Witness[]
+  
+  @@map("legacy_profiles")
+}
+
+model LegacyItem {
+  id             String      @id @default(uuid())
+  ownerUid       String
+  category       String
+  title          String
+  description    String?
+  fileUrl        String?
+  visibility     String      @default("private")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  // Relations
+  profile        LegacyProfile @relation(fields: [profileId], references: [id])
+  profileId      String
+  owner          User          @relation(fields: [ownerUid], references: [sevispassUid])
+  
+  @@map("legacy_items")
+}
+
+model Successor {
+  id               String   @id @default(uuid())
+  legacyOwnerUid   String
+  successorUid     String
+  relationship     String
+  accessLevel      String   @default("viewer")
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  legacyProfile    LegacyProfile @relation(fields: [legacyProfileId], references: [id])
+  legacyProfileId  String
+  owner            User          @relation("SuccessorNominations", fields: [legacyOwnerUid], references: [sevispassUid])
+  successor        User          @relation("SuccessorOf", fields: [successorUid], references: [sevispassUid])
+  witness          Witness?
+  successionEvent  SuccessionEvent?
+  
+  @@map("successors")
+}
+
+model Witness {
+  id               String   @id @default(uuid())
+  witnessUid       String
+  actionVerified   String
+  timestamp        DateTime @default(now())
+  digitalSignature String?
+  comments         String?
+  
+  // Relations
+  successor        Successor @relation(fields: [successorId], references: [id])
+  successorId      String   @unique
+  witness          User     @relation("WitnessRecords", fields: [witnessUid], references: [sevispassUid])
+  legacyProfile    LegacyProfile @relation(fields: [legacyProfileId], references: [id])
+  legacyProfileId  String
+  
+  @@map("witnesses")
+}
+
+model SuccessionEvent {
+  id               String   @id @default(uuid())
+  successorId      String   @unique
+  ownerUid         String
+  status           String   @default("pending")
+  accessGrantedAt  DateTime?
+  deathVerified    Boolean  @default(false)
+  deathVerifiedAt  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  successor        Successor @relation(fields: [successorId], references: [id])
+  owner            User      @relation(fields: [ownerUid], references: [sevispassUid])
+  
+  @@map("succession_events")
+}
+
+model LedgerEntry {
+  id               String   @id @default(uuid())
+  actionType       String
+  actorUid         String
+  timestamp        DateTime @default(now())
+  previousHash     String?
+  currentHash      String
+  metadata         Json?
+  
+  // Relations
+  user             User     @relation(fields: [actorUid], references: [sevispassUid])
+  
+  @@map("ledger_entries")
+}
+
+model FileUpload {
+  id               String   @id @default(uuid())
+  filename         String
+  originalName     String
+  mimeType         String
+  size             Int
+  url              String
+  itemId           String?
+  createdAt        DateTime @default(now())
+  
+  @@map("file_uploads")
+}
+
+// ============ NEW MODELS FOR ESTATE MANAGEMENT ============
+
+model Estate {
+  id                 String            @id @default(uuid())
+  ownerId            String
+  executorId         String?
+  title              String
+  description        String?
+  status             String            @default("DRAFT")
+  completionPercentage Int             @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  finalisedAt        DateTime?
+  deathVerifiedAt    DateTime?
+  
+  // Relations
+  owner              User              @relation("EstateOwner", fields: [ownerId], references: [id])
+  executor           User?             @relation("EstateExecutor", fields: [executorId], references: [id])
+  assets             Asset[]
+  beneficiaries      Beneficiary[]
+  witnesses          EstateWitness[]
+  digitalWill        DigitalWill?
+  institutionRequests InstitutionRequest[]
+  notifications      Notification[]
+  activityLogs       ActivityLog[]
+  documents          Document[]
+  
+  @@map("estates")
+}
+
+model Asset {
+  id                 String            @id @default(uuid())
+  estateId           String
+  type               String
+  title              String
+  description        String?
+  estimatedValue     Float?
+  location           String?
+  status             String            @default("active")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  
+  // Relations
+  estate             Estate            @relation(fields: [estateId], references: [id])
+  documents          Document[]
+  beneficiaryId      String?
+  beneficiary        Beneficiary?      @relation(fields: [beneficiaryId], references: [id])
+  
+  @@map("assets")
+}
+
+model Beneficiary {
+  id                 String            @id @default(uuid())
+  estateId           String
+  userId             String
+  relationship       String
+  sharePercentage    Float?
+  status             String            @default("pending")
+  invitedAt          DateTime          @default(now())
+  acceptedAt         DateTime?
+  
+  // Relations
+  estate             Estate            @relation(fields: [estateId], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+  assets             Asset[]
+  
+  @@map("beneficiaries")
+}
+
+model EstateWitness {
+  id                 String            @id @default(uuid())
+  estateId           String
+  witnessId          String
+  status             String            @default("pending")
+  comments           String?
+  verifiedAt         DateTime?
+  createdAt          DateTime          @default(now())
+  
+  // Relations
+  estate             Estate            @relation(fields: [estateId], references: [id])
+  witness            User              @relation(fields: [witnessId], references: [id])
+  
+  @@map("estate_witnesses")
+}
+
+model DigitalWill {
+  id                 String            @id @default(uuid())
+  estateId           String            @unique
+  introduction       String?
+  executorNotes      String?
+  personalMessages   String?
+  status             String            @default("draft")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  submittedAt        DateTime?
+  
+  // Relations
+  estate             Estate            @relation(fields: [estateId], references: [id])
+  witnesses          WillWitness[]
+  
+  @@map("digital_wills")
+}
+
+model WillWitness {
+  id                 String            @id @default(uuid())
+  willId             String
+  witnessId          String
+  name               String
+  signature          String?
+  verifiedAt         DateTime?
+  status             String            @default("pending")
+  
+  // Relations
+  will               DigitalWill       @relation(fields: [willId], references: [id])
+  witness            User              @relation(fields: [witnessId], references: [id])
+  
+  @@map("will_witnesses")
+}
+
+model Document {
+  id                 String            @id @default(uuid())
+  estateId           String?
+  assetId            String?
+  title              String
+  description        String?
+  fileUrl            String
+  fileType           String
+  fileSize           Int
+  visibility         String            @default("private")
+  uploadedBy         String
+  createdAt          DateTime          @default(now())
+  
+  // Relations
+  estate             Estate?           @relation(fields: [estateId], references: [id])
+  asset              Asset?            @relation(fields: [assetId], references: [id])
+  
+  @@map("documents")
+}
+
+model InstitutionRequest {
+  id                 String            @id @default(uuid())
+  estateId           String
+  userId             String
+  type               String
+  institutionName    String
+  referenceNumber    String?
+  status             String            @default("pending")
+  documents          Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  submittedAt        DateTime?
+  completedAt        DateTime?
+  
+  // Relations
+  estate             Estate            @relation(fields: [estateId], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+  
+  @@map("institution_requests")
+}
+
+model ActivityLog {
+  id                 String            @id @default(uuid())
+  userId             String
+  estateId           String?
+  action             String
+  details            Json?
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime          @default(now())
+  
+  // Relations
+  user               User              @relation(fields: [userId], references: [id])
+  estate             Estate?           @relation(fields: [estateId], references: [id])
+  
+  @@map("activity_logs")
+}
+
+model Notification {
+  id                 String            @id @default(uuid())
+  userId             String
+  estateId           String?
+  type               String
+  title              String
+  message            String
+  read               Boolean           @default(false)
+  link               String?
+  createdAt          DateTime          @default(now())
+  
+  // Relations
+  user               User              @relation(fields: [userId], references: [id])
+  estate             Estate?           @relation(fields: [estateId], references: [id])
+  
+  @@map("notifications")
+}

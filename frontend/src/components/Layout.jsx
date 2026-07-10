@@ -1,0 +1,187 @@
+import React, { useState } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Users, 
+  UserCheck, 
+  Clock, 
+  FolderOpen, 
+  Settings, 
+  User,
+  LogOut,
+  Search,
+  Bell,
+  Shield,
+  ChevronDown,
+  Menu,
+  X
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+function Layout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const navItems = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/legacy', icon: FileText, label: 'My Legacy' },
+    { to: '/successors', icon: Users, label: 'Successors' },
+    { to: '/witness', icon: UserCheck, label: 'Witness Requests' },
+    { to: '/ledger', icon: Clock, label: 'Ledger Timeline' },
+    { to: '/documents', icon: FolderOpen, label: 'Documents' },
+    { to: '/profile', icon: User, label: 'Profile' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-kastom-cream">
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <motion.aside 
+        className={`fixed top-0 left-0 h-full w-72 bg-white border-r border-kastom-border/50 z-50 
+          transform transition-transform duration-300 ease-in-out
+          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Logo */}
+          <div className="px-6 py-6 border-b border-kastom-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-kastom-green flex items-center justify-center">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-kastom-dark tracking-tight">Kastom Ledger</h1>
+                <p className="text-xs text-kastom-muted font-medium">Papua New Guinea</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-6 overflow-y-auto">
+            <div className="space-y-1">
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                    ${isActive 
+                      ? 'bg-kastom-green-bg text-kastom-green' 
+                      : 'text-kastom-muted hover:bg-kastom-cream hover:text-kastom-dark'
+                    }`
+                  }
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <item.icon className="w-5 h-5" />
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          </nav>
+
+          {/* Bottom */}
+          <div className="px-4 py-4 border-t border-kastom-border/50">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-kastom-cream">
+              <div className="w-10 h-10 rounded-full bg-kastom-green/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-kastom-green font-semibold text-sm">
+                  {user?.name?.charAt(0) || 'U'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-kastom-dark truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-kastom-muted truncate">{user?.sevispassUid || 'UID'}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg hover:bg-kastom-green-bg transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4 text-kastom-muted" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.aside>
+
+      {/* Main Content */}
+      <div className="lg:pl-72">
+        {/* Top Bar */}
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-sm border-b border-kastom-border/50">
+          <div className="flex items-center justify-between px-4 md:px-8 py-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg hover:bg-kastom-cream transition-colors"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+              <div className="hidden lg:block">
+                <h2 className="text-xl font-semibold text-kastom-dark tracking-tight">
+                  Kastom Ledger
+                </h2>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Search */}
+              <button className="p-2 rounded-lg hover:bg-kastom-cream transition-colors">
+                <Search className="w-5 h-5 text-kastom-muted" />
+              </button>
+              
+              {/* Notifications */}
+              <button className="p-2 rounded-lg hover:bg-kastom-cream transition-colors relative">
+                <Bell className="w-5 h-5 text-kastom-muted" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-kastom-danger rounded-full"></span>
+              </button>
+
+              {/* User */}
+              <div className="flex items-center gap-3 pl-3 border-l border-kastom-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-kastom-green flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">
+                      {user?.name?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div className="hidden md:block">
+                    <p className="text-sm font-medium text-kastom-dark">{user?.name || 'User'}</p>
+                    <div className="flex items-center gap-1.5">
+                      <Shield className="w-3 h-3 text-kastom-green" />
+                      <span className="text-xs text-kastom-green font-medium">SevisPass Verified</span>
+                    </div>
+                  </div>
+                </div>
+                <ChevronDown className="w-4 h-4 text-kastom-muted" />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="p-4 md:p-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default Layout;
