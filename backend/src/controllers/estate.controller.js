@@ -9,11 +9,18 @@ exports.createEstate = async (req, res) => {
     const userId = req.user.id;
     const sevispassUid = req.user.sevispassUid;
 
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estate title is required'
+      });
+    }
+
     const estate = await prisma.estate.create({
       data: {
         ownerId: userId,
         title,
-        description,
+        description: description || '',
         status: 'DRAFT'
       }
     });
@@ -45,7 +52,8 @@ exports.createEstate = async (req, res) => {
     console.error('Create estate error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create estate'
+      message: 'Failed to create estate',
+      error: error.message
     });
   }
 };
@@ -62,6 +70,7 @@ exports.getEstates = async (req, res) => {
           include: {
             user: {
               select: {
+                id: true,
                 name: true,
                 sevispassUid: true,
                 profilePhoto: true
@@ -98,7 +107,8 @@ exports.getEstates = async (req, res) => {
     console.error('Get estates error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch estates'
+      message: 'Failed to fetch estates',
+      error: error.message
     });
   }
 };
@@ -187,7 +197,8 @@ exports.getEstate = async (req, res) => {
     console.error('Get estate error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch estate'
+      message: 'Failed to fetch estate',
+      error: error.message
     });
   }
 };
@@ -214,7 +225,7 @@ exports.updateEstate = async (req, res) => {
       where: { id },
       data: {
         title: title || existing.title,
-        description: description || existing.description,
+        description: description !== undefined ? description : existing.description,
         status: status || existing.status
       }
     });
@@ -247,7 +258,8 @@ exports.updateEstate = async (req, res) => {
     console.error('Update estate error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update estate'
+      message: 'Failed to update estate',
+      error: error.message
     });
   }
 };
@@ -269,6 +281,48 @@ exports.deleteEstate = async (req, res) => {
       });
     }
 
+    // Delete all related records first (cascade delete)
+    // 1. Delete all documents related to this estate
+    await prisma.document.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 2. Delete all assets
+    await prisma.asset.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 3. Delete all beneficiaries
+    await prisma.beneficiary.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 4. Delete all estate witnesses
+    await prisma.estateWitness.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 5. Delete digital will if exists
+    await prisma.digitalWill.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 6. Delete institution requests
+    await prisma.institutionRequest.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 7. Delete activity logs
+    await prisma.activityLog.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 8. Delete notifications
+    await prisma.notification.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 9. Finally delete the estate
     await prisma.estate.delete({
       where: { id }
     });
@@ -290,7 +344,8 @@ exports.deleteEstate = async (req, res) => {
     console.error('Delete estate error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete estate'
+      message: 'Failed to delete estate',
+      error: error.message
     });
   }
 };
@@ -345,7 +400,8 @@ exports.getEstateStatus = async (req, res) => {
     console.error('Get estate status error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch estate status'
+      message: 'Failed to fetch estate status',
+      error: error.message
     });
   }
 };

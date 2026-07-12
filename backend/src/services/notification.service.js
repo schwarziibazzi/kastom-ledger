@@ -2,12 +2,17 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 class NotificationService {
-  async createNotification(userId, type, title, message, link = null, estateId = null) {
+  async createNotification(userId, type, title, message, link = null, entityId = null) {
     try {
+      if (!userId) {
+        console.warn('No userId provided for notification');
+        return null;
+      }
+
       const notification = await prisma.notification.create({
         data: {
           userId,
-          estateId,
+          estateId: entityId || null,
           type,
           title,
           message,
@@ -18,7 +23,7 @@ class NotificationService {
       return notification;
     } catch (error) {
       console.error('Create notification error:', error);
-      throw error;
+      return null;
     }
   }
 

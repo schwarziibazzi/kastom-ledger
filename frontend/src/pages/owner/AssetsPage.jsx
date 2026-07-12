@@ -15,7 +15,8 @@ import {
   PiggyBank,
   Coins,
   FileText,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -25,6 +26,7 @@ function AssetsPage() {
   const [assets, setAssets] = useState([]);
   const [estates, setEstates] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [newAsset, setNewAsset] = useState({
     estateId: '',
     type: 'HOUSE',
@@ -71,7 +73,7 @@ function AssetsPage() {
 
   const handleCreateAsset = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setCreating(true);
     try {
       await api.post('/assets', newAsset);
       toast.success('Asset created successfully!');
@@ -88,7 +90,18 @@ function AssetsPage() {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create asset');
     } finally {
-      setLoading(false);
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this asset?')) return;
+    try {
+      await api.delete(`/assets/${id}`);
+      toast.success('Asset deleted successfully');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to delete asset');
     }
   };
 
@@ -130,7 +143,6 @@ function AssetsPage() {
         </button>
       </div>
 
-      {/* Assets Grid */}
       {assets.length === 0 ? (
         <div className="text-center py-16">
           <div className="w-16 h-16 rounded-2xl bg-kastom-cream flex items-center justify-center mx-auto mb-4">
@@ -168,11 +180,26 @@ function AssetsPage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <button className="p-1.5 rounded-lg hover:bg-kastom-cream transition-colors">
+                    <button 
+                      onClick={() => navigate(`/assets/${asset.id}`)}
+                      className="p-1.5 rounded-lg hover:bg-kastom-cream transition-colors"
+                      title="View"
+                    >
                       <Eye className="w-4 h-4 text-kastom-muted" />
                     </button>
-                    <button className="p-1.5 rounded-lg hover:bg-kastom-cream transition-colors">
+                    <button 
+                      onClick={() => navigate(`/assets/edit/${asset.id}`)}
+                      className="p-1.5 rounded-lg hover:bg-kastom-cream transition-colors"
+                      title="Edit"
+                    >
                       <Edit className="w-4 h-4 text-kastom-muted" />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(asset.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4 text-kastom-danger" />
                     </button>
                   </div>
                 </div>
@@ -298,10 +325,17 @@ function AssetsPage() {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="btn-primary flex-1"
+                  disabled={creating}
+                  className="btn-primary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Adding...' : 'Add Asset'}
+                  {creating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    'Add Asset'
+                  )}
                 </button>
                 <button
                   type="button"

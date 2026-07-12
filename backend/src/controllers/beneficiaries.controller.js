@@ -1,11 +1,12 @@
 const { PrismaClient } = require('@prisma/client');
 const ledgerService = require('../services/ledger.service');
 const notificationService = require('../services/notification.service');
+const crypto = require('crypto');
 const prisma = new PrismaClient();
 
 exports.createBeneficiary = async (req, res) => {
   try {
-    const { estateId, userId, relationship, sharePercentage } = req.body;
+    const { estateId, userId, name, email, relationship, sharePercentage } = req.body;
     const ownerId = req.user.id;
     const sevispassUid = req.user.sevispassUid;
 
@@ -21,39 +22,67 @@ exports.createBeneficiary = async (req, res) => {
       });
     }
 
-    // Check if beneficiary exists
-    const beneficiaryUser = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!beneficiaryUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Check if already a beneficiary
-    const existing = await prisma.beneficiary.findFirst({
+    // Check if beneficiary already exists by name
+    const existingByName = await prisma.beneficiary.findFirst({
       where: {
         estateId,
-        userId
+        name: name.trim()
       }
     });
 
-    if (existing) {
+    if (existingByName) {
       return res.status(400).json({
         success: false,
-        message: 'User is already a beneficiary'
+        message: 'A beneficiary with this name already exists in this estate'
       });
+    }
+
+    let beneficiaryUserId = userId;
+    let beneficiaryStatus = 'pending';
+    let invitationToken = null;
+
+    // If userId is provided, check if user exists
+    if (userId) {
+      const existingUser = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+      if (existingUser) {
+        beneficiaryUserId = userId;
+        // Check if already a beneficiary
+        const existing = await prisma.beneficiary.findFirst({
+          where: {
+            estateId,
+            userId
+          }
+        });
+        if (existing) {
+          return res.status(400).json({
+            success: false,
+            message: 'This user is already a beneficiary'
+          });
+        }
+        beneficiaryStatus = 'accepted'; // Auto-accept if already in system
+      } else {
+        beneficiaryUserId = null;
+      }
+    }
+
+    // Generate invitation token if user not found or no userId provided
+    if (!beneficiaryUserId) {
+      invitationToken = crypto.randomBytes(32).toString('hex');
     }
 
     const beneficiary = await prisma.beneficiary.create({
       data: {
         estateId,
-        userId,
+        userId: beneficiaryUserId || null,
+        name: name.trim(),
+        email: email || null,
         relationship,
-        sharePercentage: parseFloat(sharePercentage) || null
+        sharePercentage: sharePercentage ? parseFloat(sharePercentage) : null,
+        status: beneficiaryStatus,
+        invitationToken,
+        invitedAt: new Date()
       }
     });
 
@@ -63,23 +92,40 @@ exports.createBeneficiary = async (req, res) => {
       {
         estateId,
         beneficiaryId: beneficiary.id,
-        userId
+        name: beneficiary.name,
+        hasAccount: !!beneficiaryUserId
       }
     );
 
+    // Notification for estate owner
     await notificationService.createNotification(
-      userId,
-      'BENEFICIARY_ACCEPTED',
-      'Beneficiary Invitation',
-      `You have been added as a beneficiary to "${estate.title}".`,
-      `/beneficiary/estate/${estateId}`,
+      ownerId,
+      'BENEFICIARY_ADDED',
+      'Beneficiary Added',
+      `${beneficiary.name} has been added as a beneficiary to "${estate.title}".`,
+      `/beneficiaries/${beneficiary.id}`,
       estateId
     );
 
+    // If beneficiary doesn't have an account, send invitation
+    if (!beneficiaryUserId && email) {
+      // In production: Send email with invitation link
+      // For demo: Just notify owner
+      await notificationService.createNotification(
+        ownerId,
+        'BENEFICIARY_ACCEPTED',
+        'Invitation Required',
+        `${beneficiary.name} needs to create a SevisPass account to claim their inheritance.`,
+        `/beneficiaries/${beneficiary.id}`,
+        estateId
+      );
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Beneficiary added successfully',
-      beneficiary
+      message: beneficiaryUserId ? 'Beneficiary added successfully' : 'Beneficiary added. They will need to create an account to claim their inheritance.',
+      beneficiary,
+      needsInvitation: !beneficiaryUserId
     });
   } catch (error) {
     console.error('Create beneficiary error:', error);
@@ -119,7 +165,7 @@ exports.getBeneficiaries = async (req, res) => {
         },
         assets: true
       },
-      orderBy: { invitedAt: 'desc' }  // ← FIXED: changed from createdAt to invitedAt
+      orderBy: { invitedAt: 'desc' }
     });
 
     res.json({
@@ -200,7 +246,7 @@ exports.getBeneficiary = async (req, res) => {
 exports.updateBeneficiary = async (req, res) => {
   try {
     const { id } = req.params;
-    const { relationship, sharePercentage, status } = req.body;
+    const { name, email, relationship, sharePercentage, status } = req.body;
     const userId = req.user.id;
     const sevispassUid = req.user.sevispassUid;
 
@@ -223,6 +269,8 @@ exports.updateBeneficiary = async (req, res) => {
     const beneficiary = await prisma.beneficiary.update({
       where: { id },
       data: {
+        name: name || existing.name,
+        email: email || existing.email,
         relationship: relationship || existing.relationship,
         sharePercentage: sharePercentage ? parseFloat(sharePercentage) : existing.sharePercentage,
         status: status || existing.status,
@@ -285,7 +333,7 @@ exports.deleteBeneficiary = async (req, res) => {
       sevispassUid,
       {
         beneficiaryId: id,
-        userId: existing.userId
+        name: existing.name
       }
     );
 
@@ -303,7 +351,154 @@ exports.deleteBeneficiary = async (req, res) => {
   }
 };
 
-// Beneficiary-specific endpoints for the beneficiary dashboard
+// Claim beneficiary invitation
+exports.claimInvitation = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const userId = req.user.id;
+    const sevispassUid = req.user.sevispassUid;
+
+    const beneficiary = await prisma.beneficiary.findFirst({
+      where: {
+        invitationToken: token,
+        userId: null // Not yet claimed
+      }
+    });
+
+    if (!beneficiary) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid or already claimed invitation'
+      });
+    }
+
+    // Check if this user is already a beneficiary for this estate
+    const existing = await prisma.beneficiary.findFirst({
+      where: {
+        estateId: beneficiary.estateId,
+        userId
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'You are already a beneficiary for this estate'
+      });
+    }
+
+    const claimed = await prisma.beneficiary.update({
+      where: { id: beneficiary.id },
+      data: {
+        userId,
+        status: 'accepted',
+        claimedAt: new Date(),
+        invitationToken: null
+      }
+    });
+
+    await ledgerService.createEntry(
+      'BENEFICIARY_CLAIMED',
+      sevispassUid,
+      {
+        beneficiaryId: claimed.id,
+        estateId: claimed.estateId
+      }
+    );
+
+    await notificationService.createNotification(
+      claimed.estate.ownerId,
+      'BENEFICIARY_ACCEPTED',
+      'Beneficiary Claimed',
+      `${claimed.name} has claimed their beneficiary invitation.`,
+      `/beneficiaries/${claimed.id}`,
+      claimed.estateId
+    );
+
+    res.json({
+      success: true,
+      message: 'Beneficiary invitation claimed successfully',
+      beneficiary: claimed
+    });
+  } catch (error) {
+    console.error('Claim invitation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to claim invitation',
+      error: error.message
+    });
+  }
+};
+
+// Resend invitation
+exports.resendInvitation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const beneficiary = await prisma.beneficiary.findFirst({
+      where: {
+        id,
+        estate: {
+          ownerId: userId
+        }
+      }
+    });
+
+    if (!beneficiary) {
+      return res.status(404).json({
+        success: false,
+        message: 'Beneficiary not found'
+      });
+    }
+
+    if (beneficiary.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'This beneficiary already has an account'
+      });
+    }
+
+    if (!beneficiary.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'No email address on file to send invitation'
+      });
+    }
+
+    // Generate new token
+    const newToken = crypto.randomBytes(32).toString('hex');
+    await prisma.beneficiary.update({
+      where: { id },
+      data: { invitationToken: newToken }
+    });
+
+    // In production: Send email with new invitation link
+    // For demo: Just notify
+    await notificationService.createNotification(
+      userId,
+      'BENEFICIARY_ACCEPTED',
+      'Invitation Resent',
+      `Invitation resent to ${beneficiary.name} at ${beneficiary.email}.`,
+      `/beneficiaries/${beneficiary.id}`,
+      beneficiary.estateId
+    );
+
+    res.json({
+      success: true,
+      message: 'Invitation resent successfully'
+    });
+  } catch (error) {
+    console.error('Resend invitation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to resend invitation',
+      error: error.message
+    });
+  }
+};
+
+// Beneficiary-specific endpoints
 exports.getBeneficiaryEstates = async (req, res) => {
   try {
     const userId = req.user.id;

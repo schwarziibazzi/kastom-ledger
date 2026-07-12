@@ -37,6 +37,9 @@ model User {
   notifications        Notification[]
   activityLogs         ActivityLog[]
   institutionRequests  InstitutionRequest[]
+  folders              Folder[]
+  documents            Document[]
+  audioFiles           AudioFile[]
   
   @@map("users")
 }
@@ -150,20 +153,7 @@ model LedgerEntry {
   @@map("ledger_entries")
 }
 
-model FileUpload {
-  id               String   @id @default(uuid())
-  filename         String
-  originalName     String
-  mimeType         String
-  size             Int
-  url              String
-  itemId           String?
-  createdAt        DateTime @default(now())
-  
-  @@map("file_uploads")
-}
-
-// ============ NEW MODELS FOR ESTATE MANAGEMENT ============
+// ============ ESTATE MANAGEMENT MODELS ============
 
 model Estate {
   id                 String            @id @default(uuid())
@@ -217,16 +207,20 @@ model Asset {
 model Beneficiary {
   id                 String            @id @default(uuid())
   estateId           String
-  userId             String
+  userId             String?
+  name               String            // Store name even if not registered
+  email              String?           // For sending invitations
   relationship       String
   sharePercentage    Float?
   status             String            @default("pending")
+  invitationToken    String?           // For claiming invitation
   invitedAt          DateTime          @default(now())
   acceptedAt         DateTime?
+  claimedAt          DateTime?         // When they claimed with SevisPass
   
   // Relations
   estate             Estate            @relation(fields: [estateId], references: [id])
-  user               User              @relation(fields: [userId], references: [id])
+  user               User?             @relation(fields: [userId], references: [id])
   assets             Asset[]
   
   @@map("beneficiaries")
@@ -252,8 +246,11 @@ model DigitalWill {
   id                 String            @id @default(uuid())
   estateId           String            @unique
   introduction       String?
+  introductionAudio  String?
   executorNotes      String?
+  executorAudio      String?
   personalMessages   String?
+  messagesAudio      String?
   status             String            @default("draft")
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -280,26 +277,6 @@ model WillWitness {
   witness            User              @relation(fields: [witnessId], references: [id])
   
   @@map("will_witnesses")
-}
-
-model Document {
-  id                 String            @id @default(uuid())
-  estateId           String?
-  assetId            String?
-  title              String
-  description        String?
-  fileUrl            String
-  fileType           String
-  fileSize           Int
-  visibility         String            @default("private")
-  uploadedBy         String
-  createdAt          DateTime          @default(now())
-  
-  // Relations
-  estate             Estate?           @relation(fields: [estateId], references: [id])
-  asset              Asset?            @relation(fields: [assetId], references: [id])
-  
-  @@map("documents")
 }
 
 model InstitutionRequest {
@@ -356,4 +333,75 @@ model Notification {
   estate             Estate?           @relation(fields: [estateId], references: [id])
   
   @@map("notifications")
+}
+
+// ============ DOCUMENT MANAGEMENT MODELS ============
+
+model Folder {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  parentId    String?
+  ownerId     String
+  isSystem    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  owner       User        @relation(fields: [ownerId], references: [id])
+  parent      Folder?     @relation("FolderParent", fields: [parentId], references: [id])
+  children    Folder[]    @relation("FolderParent")
+  documents   Document[]
+  audioFiles  AudioFile[]
+
+  @@map("folders")
+}
+
+model AudioFile {
+  id          String      @id @default(uuid())
+  folderId    String?
+  title       String
+  description String?
+  fileUrl     String
+  fileSize    Int
+  duration    Int?
+  uploadedBy  String
+  category    String      @default("will_audio")
+  relatedTo   String?
+  relatedId   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  folder      Folder?     @relation(fields: [folderId], references: [id])
+  user        User        @relation(fields: [uploadedBy], references: [id])
+
+  @@map("audio_files")
+}
+
+model Document {
+  id          String      @id @default(uuid())
+  folderId    String?
+  title       String
+  description String?
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  mimeType    String
+  visibility  String      @default("private")
+  uploadedBy  String
+  category    String      @default("general")
+  estateId    String?
+  assetId     String?
+  tags        String[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  folder      Folder?     @relation(fields: [folderId], references: [id])
+  user        User        @relation(fields: [uploadedBy], references: [id])
+  estate      Estate?     @relation(fields: [estateId], references: [id])
+  asset       Asset?      @relation(fields: [assetId], references: [id])
+
+  @@map("documents")
 }

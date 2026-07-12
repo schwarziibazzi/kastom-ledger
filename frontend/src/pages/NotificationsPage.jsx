@@ -13,13 +13,15 @@ import {
   Package,
   Shield,
   Check,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function NotificationsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState('all');
 
@@ -40,17 +42,23 @@ function NotificationsPage() {
   };
 
   const markAsRead = async (id) => {
+    setProcessing(id);
     try {
       await api.put(`/notifications/${id}/read`);
       setNotifications(notifications.map(n => 
         n.id === id ? { ...n, read: true } : n
       ));
+      toast.success('Notification marked as read');
     } catch (error) {
       console.error('Mark as read error:', error);
+      toast.error('Failed to mark as read');
+    } finally {
+      setProcessing(null);
     }
   };
 
   const markAllAsRead = async () => {
+    setProcessing('all');
     try {
       await api.put('/notifications/read-all');
       setNotifications(notifications.map(n => ({ ...n, read: true })));
@@ -58,6 +66,8 @@ function NotificationsPage() {
     } catch (error) {
       console.error('Mark all as read error:', error);
       toast.error('Failed to mark all as read');
+    } finally {
+      setProcessing(null);
     }
   };
 
@@ -72,7 +82,20 @@ function NotificationsPage() {
       'ADMIN_VERIFIED': Shield,
       'DEATH_VERIFIED': Shield,
       'EXECUTOR_ACTIVATED': Users,
-      'BENEFICIARY_NOTIFIED': Bell
+      'BENEFICIARY_NOTIFIED': Bell,
+      'WITNESS_REJECTED': X,
+      'ESTATE_CREATED': Package,
+      'ESTATE_DELETED': Package,
+      'ASSET_ADDED': Package,
+      'ASSET_UPDATED': Package,
+      'ASSET_DELETED': Package,
+      'BENEFICIARY_ADDED': Users,
+      'BENEFICIARY_UPDATED': Users,
+      'BENEFICIARY_REMOVED': Users,
+      'DIGITAL_WILL_CREATED': FileText,
+      'DIGITAL_WILL_UPDATED': FileText,
+      'DIGITAL_WILL_SUBMITTED': FileText,
+      'DIGITAL_WILL_DELETED': FileText
     };
     const Icon = icons[type] || Bell;
     return Icon;
@@ -81,12 +104,23 @@ function NotificationsPage() {
   const getNotificationColor = (type) => {
     const colors = {
       'WITNESS_APPROVED': 'text-green-600 bg-green-50',
+      'WITNESS_REJECTED': 'text-red-600 bg-red-50',
       'BENEFICIARY_ACCEPTED': 'text-blue-600 bg-blue-50',
       'WITNESS_REQUESTED': 'text-yellow-600 bg-yellow-50',
       'DOCUMENT_UPLOADED': 'text-purple-600 bg-purple-50',
       'ESTATE_UPDATED': 'text-kastom-green bg-kastom-green-bg',
+      'ESTATE_CREATED': 'text-kastom-green bg-kastom-green-bg',
+      'ESTATE_DELETED': 'text-red-600 bg-red-50',
+      'ASSET_ADDED': 'text-kastom-green bg-kastom-green-bg',
+      'ASSET_UPDATED': 'text-blue-600 bg-blue-50',
+      'ASSET_DELETED': 'text-red-600 bg-red-50',
+      'BENEFICIARY_ADDED': 'text-blue-600 bg-blue-50',
+      'BENEFICIARY_UPDATED': 'text-blue-600 bg-blue-50',
+      'BENEFICIARY_REMOVED': 'text-red-600 bg-red-50',
       'VERIFICATION_COMPLETE': 'text-kastom-success bg-green-50',
-      'ADMIN_VERIFIED': 'text-red-600 bg-red-50'
+      'ADMIN_VERIFIED': 'text-red-600 bg-red-50',
+      'DIGITAL_WILL_CREATED': 'text-purple-600 bg-purple-50',
+      'DIGITAL_WILL_SUBMITTED': 'text-green-600 bg-green-50'
     };
     return colors[type] || 'text-kastom-muted bg-kastom-cream';
   };
@@ -98,6 +132,16 @@ function NotificationsPage() {
       : notifications.filter(n => n.read);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-PG', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   if (loading) {
     return (
@@ -119,9 +163,14 @@ function NotificationsPage() {
         {unreadCount > 0 && (
           <button
             onClick={markAllAsRead}
+            disabled={processing === 'all'}
             className="btn-secondary text-sm inline-flex items-center gap-2"
           >
-            <Check className="w-4 h-4" />
+            {processing === 'all' ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
             Mark all as read
           </button>
         )}
@@ -183,29 +232,28 @@ function NotificationsPage() {
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="min-w-0">
                         <p className={`font-medium ${notification.read ? 'text-kastom-dark' : 'text-kastom-dark'}`}>
                           {notification.title}
                         </p>
-                        <p className="text-sm text-kastom-muted mt-1">{notification.message}</p>
+                        <p className="text-sm text-kastom-muted mt-1 break-words">{notification.message}</p>
                         <p className="text-xs text-kastom-muted/60 mt-2">
-                          {new Date(notification.createdAt).toLocaleDateString('en-PG', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {formatDate(notification.createdAt)}
                         </p>
                       </div>
                       {!notification.read && (
                         <button
                           onClick={() => markAsRead(notification.id)}
-                          className="text-kastom-green hover:underline text-sm whitespace-nowrap"
+                          disabled={processing === notification.id}
+                          className="text-kastom-green hover:underline text-sm whitespace-nowrap ml-2 flex-shrink-0"
                         >
-                          Mark as read
+                          {processing === notification.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            'Mark as read'
+                          )}
                         </button>
                       )}
                     </div>
@@ -213,6 +261,12 @@ function NotificationsPage() {
                       <Link 
                         to={notification.link}
                         className="inline-block mt-2 text-sm text-kastom-green hover:underline font-medium"
+                        onClick={() => {
+                          // Mark as read when clicked
+                          if (!notification.read) {
+                            markAsRead(notification.id);
+                          }
+                        }}
                       >
                         View details →
                       </Link>

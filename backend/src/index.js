@@ -18,6 +18,9 @@ const assetsRoutes = require('./routes/assets.routes');
 const beneficiariesRoutes = require('./routes/beneficiaries.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const searchRoutes = require('./routes/search.routes');
+const adminRoutes = require('./routes/admin.routes');
+const willRoutes = require('./routes/will.routes');
+const documentsRoutes = require('./routes/documents.routes');
 
 const { errorHandler } = require('./middleware/error.middleware');
 
@@ -42,12 +45,13 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// Body parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parser - INCREASED LIMIT FOR AUDIO FILES
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Static files for uploads
+// Static files for uploads and PDFs
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/pdfs', express.static(path.join(__dirname, '../pdfs')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -67,6 +71,9 @@ app.use('/api/assets', assetsRoutes);
 app.use('/api/beneficiaries', beneficiariesRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/will', willRoutes);
+app.use('/api/documents', documentsRoutes);
 
 // Error handler
 app.use(errorHandler);

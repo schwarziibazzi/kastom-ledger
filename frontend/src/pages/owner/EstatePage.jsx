@@ -14,7 +14,9 @@ import {
   Users,
   Package,
   FileText,
-  ArrowRight
+  ArrowRight,
+  Loader2,
+  X
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -23,6 +25,7 @@ function EstatePage() {
   const [loading, setLoading] = useState(true);
   const [estates, setEstates] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [newEstate, setNewEstate] = useState({
     title: '',
     description: ''
@@ -46,7 +49,7 @@ function EstatePage() {
 
   const handleCreateEstate = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setCreating(true);
     try {
       await api.post('/estates', newEstate);
       toast.success('Estate created successfully!');
@@ -56,7 +59,18 @@ function EstatePage() {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create estate');
     } finally {
-      setLoading(false);
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this estate?')) return;
+    try {
+      await api.delete(`/estates/${id}`);
+      toast.success('Estate deleted successfully');
+      fetchEstates();
+    } catch (error) {
+      toast.error('Failed to delete estate');
     }
   };
 
@@ -107,7 +121,6 @@ function EstatePage() {
         </button>
       </div>
 
-      {/* Estates List */}
       <div className="grid md:grid-cols-2 gap-6">
         {estates.length === 0 ? (
           <div className="col-span-2 text-center py-16">
@@ -165,11 +178,18 @@ function EstatePage() {
                     <Eye className="w-4 h-4 text-kastom-muted" />
                   </button>
                   <button 
-                    onClick={() => toast.success('Edit estate (demo)')}
+                    onClick={() => navigate(`/estate/edit/${estate.id}`)}
                     className="p-2 rounded-lg hover:bg-kastom-cream transition-colors"
                     title="Edit"
                   >
                     <Edit className="w-4 h-4 text-kastom-muted" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(estate.id)}
+                    className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4 text-kastom-danger" />
                   </button>
                 </div>
               </div>
@@ -186,7 +206,12 @@ function EstatePage() {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl max-w-md w-full p-6 shadow-premium-xl"
           >
-            <h2 className="text-xl font-semibold text-kastom-dark mb-6">Create New Estate</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-kastom-dark">Create New Estate</h2>
+              <button onClick={() => setShowCreateModal(false)} className="p-2 rounded-lg hover:bg-kastom-cream transition-colors">
+                <X className="w-5 h-5 text-kastom-muted" />
+              </button>
+            </div>
             <form onSubmit={handleCreateEstate}>
               <div className="mb-4">
                 <label className="input-label">Estate Title *</label>
@@ -212,10 +237,17 @@ function EstatePage() {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="btn-primary flex-1"
+                  disabled={creating}
+                  className="btn-primary flex-1 inline-flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Creating...' : 'Create Estate'}
+                  {creating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Estate'
+                  )}
                 </button>
                 <button
                   type="button"

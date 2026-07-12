@@ -14,14 +14,22 @@ import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import SearchPage from './pages/SearchPage';
 import NotificationsPage from './pages/NotificationsPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Pages - Owner
 import OwnerDashboard from './pages/owner/OwnerDashboard';
 import EstatePage from './pages/owner/EstatePage';
+import EstateDetailPage from './pages/owner/EstateDetailPage';
+import EstateEditPage from './pages/owner/EstateEditPage';
 import AssetsPage from './pages/owner/AssetsPage';
+import AssetDetailPage from './pages/owner/AssetDetailPage';
+import AssetEditPage from './pages/owner/AssetEditPage';
 import BeneficiariesPage from './pages/owner/BeneficiariesPage';
+import BeneficiaryDetailPage from './pages/owner/BeneficiaryDetailPage';
+import BeneficiaryEditPage from './pages/owner/BeneficiaryEditPage';
 import DigitalWillPage from './pages/owner/DigitalWillPage';
 import WitnessRequestsPage from './pages/owner/WitnessRequestsPage';
+import WitnessRequestDetailPage from './pages/owner/WitnessRequestDetailPage';
 
 // Pages - Beneficiary
 import BeneficiaryDashboard from './pages/beneficiary/BeneficiaryDashboard';
@@ -44,7 +52,6 @@ import ReportsPage from './pages/admin/ReportsPage';
 import Ledger from './pages/Ledger';
 import Documents from './pages/Documents';
 import Profile from './pages/Profile';
-import SettingsPage from './pages/SettingsPage';
 
 function App() {
   const { loading } = useAuth();
@@ -101,21 +108,28 @@ function App() {
               {/* Common Routes */}
               <Route path="/search" element={<SearchPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/profile" element={<Profile />} />
 
               {/* Owner Routes */}
               <Route path="/dashboard" element={<OwnerDashboard />} />
               <Route path="/estate" element={<EstatePage />} />
               <Route path="/estate/create" element={<EstatePage />} />
+              <Route path="/estate/:id" element={<EstateDetailPage />} />
+              <Route path="/estate/edit/:id" element={<EstateEditPage />} />
               <Route path="/assets" element={<AssetsPage />} />
               <Route path="/assets/create" element={<AssetsPage />} />
+              <Route path="/assets/:id" element={<AssetDetailPage />} />
+              <Route path="/assets/edit/:id" element={<AssetEditPage />} />
               <Route path="/beneficiaries" element={<BeneficiariesPage />} />
               <Route path="/beneficiaries/add" element={<BeneficiariesPage />} />
+              <Route path="/beneficiaries/:id" element={<BeneficiaryDetailPage />} />
+              <Route path="/beneficiaries/edit/:id" element={<BeneficiaryEditPage />} />
               <Route path="/will" element={<DigitalWillPage />} />
               <Route path="/witness-requests" element={<WitnessRequestsPage />} />
+              <Route path="/witness-requests/:id" element={<WitnessRequestDetailPage />} />
               <Route path="/ledger" element={<Ledger />} />
               <Route path="/documents" element={<Documents />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/profile" element={<Profile />} />
 
               {/* Beneficiary Routes */}
               <Route path="/my-estates" element={<BeneficiaryDashboard />} />
