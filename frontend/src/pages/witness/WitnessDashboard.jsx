@@ -12,7 +12,11 @@ import {
   Shield,
   FileText,
   Users,
-  Bell
+  Bell,
+  AlertCircle,
+  Eye,
+  Calendar,
+  ArrowRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -66,11 +70,33 @@ function WitnessDashboard() {
     }
   };
 
+  const handleApprove = async (id) => {
+    try {
+      await api.post(`/witness/${id}/approve`);
+      toast.success('Request approved successfully');
+      fetchDashboardData();
+    } catch (error) {
+      toast.error('Failed to approve request');
+    }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      await api.post(`/witness/${id}/reject`);
+      toast.success('Request rejected');
+      fetchDashboardData();
+    } catch (error) {
+      toast.error('Failed to reject request');
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-PG', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -96,18 +122,23 @@ function WitnessDashboard() {
               Welcome, {user?.name}
             </h1>
             <div className="flex items-center gap-2 mt-2">
-              <Shield className="w-4 h-4 text-kastom-green" />
+              <Shield className="w-4 h-4 text-purple-600" />
               <span className="text-kastom-muted font-medium">
                 {user?.sevispassUid} • {user?.province}
               </span>
               <span className="inline-flex items-center gap-1 ml-2 text-xs bg-purple-50 text-purple-700 px-3 py-1 rounded-full font-medium">
-                <CheckCircle className="w-3 h-3" />
+                <UserCheck className="w-3 h-3" />
                 Witness
               </span>
             </div>
             <p className="text-sm text-kastom-muted mt-2">
-              You have {stats.pending} pending witness request(s).
+              You have {stats.pending} pending witness request(s) to review.
             </p>
+          </div>
+          <div className="flex gap-3">
+            <span className="bg-purple-50 text-purple-700 px-4 py-2 rounded-xl text-sm border border-purple-200">
+              Verification Role Only
+            </span>
           </div>
         </div>
       </motion.div>
@@ -119,10 +150,10 @@ function WitnessDashboard() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8"
       >
-        <div className="card card-hover">
+        <div className="card card-hover border-l-4 border-yellow-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-kastom-muted font-medium">Pending</p>
+              <p className="text-sm text-kastom-muted font-medium">Pending Review</p>
               <p className="text-3xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-yellow-50 flex items-center justify-center">
@@ -131,7 +162,7 @@ function WitnessDashboard() {
           </div>
         </div>
 
-        <div className="card card-hover">
+        <div className="card card-hover border-l-4 border-green-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-kastom-muted font-medium">Approved</p>
@@ -143,7 +174,7 @@ function WitnessDashboard() {
           </div>
         </div>
 
-        <div className="card card-hover">
+        <div className="card card-hover border-l-4 border-red-500">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-kastom-muted font-medium">Rejected</p>
@@ -156,69 +187,97 @@ function WitnessDashboard() {
         </div>
       </motion.div>
 
+      {/* Quick Actions - Witness Only */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid md:grid-cols-2 gap-4 mb-8"
+      >
+        <Link to="/witness-requests" className="card card-hover border-2 border-dashed border-yellow-300 hover:border-yellow-500 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-kastom-dark">Review Pending Requests</h3>
+              <p className="text-sm text-kastom-muted">Verify and approve requests</p>
+            </div>
+            <Clock className="w-5 h-5 text-yellow-600" />
+          </div>
+        </Link>
+
+        <Link to="/witness-approved" className="card card-hover border-2 border-dashed border-green-300 hover:border-green-500 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-kastom-dark">Approved Requests</h3>
+              <p className="text-sm text-kastom-muted">View your approval history</p>
+            </div>
+            <CheckCircle className="w-5 h-5 text-kastom-success" />
+          </div>
+        </Link>
+      </motion.div>
+
       <div className="grid md:grid-cols-2 gap-6">
         {/* Pending Requests */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="card"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-kastom-dark">Pending Witness Requests</h2>
-            <Link to="/witness-requests" className="text-sm text-kastom-green hover:underline font-medium">
-              View all
-            </Link>
-          </div>
-
-          {pendingRequests.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-2xl bg-kastom-cream flex items-center justify-center mx-auto mb-4">
-                <UserCheck className="w-8 h-8 text-kastom-muted" />
-              </div>
-              <p className="text-kastom-muted font-medium">No pending requests</p>
-              <p className="text-sm text-kastom-muted/60 mt-1">You're all caught up</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {pendingRequests.slice(0, 5).map((request) => (
-                <div key={request.id} className="flex items-center justify-between p-4 bg-kastom-cream rounded-xl border border-kastom-border/50">
-                  <div>
-                    <p className="font-semibold text-kastom-dark">
-                      {request.legacyProfile?.title || 'Estate'}
-                    </p>
-                    <div className="flex items-center gap-3 text-sm text-kastom-muted">
-                      <span>From: {request.successor?.owner?.name || 'Unknown'}</span>
-                      <span>•</span>
-                      <span>Action: {request.actionVerified?.replace(/_/g, ' ') || 'Nomination'}</span>
-                    </div>
-                    <p className="text-xs text-kastom-muted/60 mt-1">
-                      {formatDate(request.timestamp)}
-                    </p>
-                  </div>
-                  <Link 
-                    to={`/witness-requests/${request.id}`}
-                    className="btn-primary text-sm px-4 py-2 inline-flex items-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    Review
-                  </Link>
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Notifications */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="card"
         >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-kastom-dark flex items-center gap-2">
+              <Clock className="w-5 h-5 text-yellow-600" />
+              Pending Requests
+            </h2>
+            <span className="badge badge-pending">{stats.pending} pending</span>
+          </div>
+
+          {pendingRequests.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-2xl bg-kastom-cream flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-kastom-success" />
+              </div>
+              <p className="text-kastom-muted font-medium">No pending requests</p>
+              <p className="text-sm text-kastom-muted/60 mt-1">You're all caught up!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingRequests.slice(0, 5).map((request) => (
+                <div key={request.id} className="p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-kastom-dark text-sm">
+                        {request.legacyProfile?.title || 'Estate'}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-kastom-muted">
+                        <span>From: {request.successor?.owner?.name || 'Unknown'}</span>
+                        <span>•</span>
+                        <span>{formatDate(request.timestamp)}</span>
+                      </div>
+                    </div>
+                    <Link 
+                      to={`/witness-requests/${request.id}`}
+                      className="btn-primary text-sm px-3 py-1.5 inline-flex items-center gap-1"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Review
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Recent Activity / Notifications */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="card"
+        >
           <h2 className="text-lg font-semibold text-kastom-dark mb-4 flex items-center gap-2">
             <Bell className="w-5 h-5 text-kastom-green" />
-            Notifications
+            Recent Activity
           </h2>
 
           {notifications.length === 0 ? (
@@ -226,21 +285,62 @@ function WitnessDashboard() {
               <div className="w-16 h-16 rounded-2xl bg-kastom-cream flex items-center justify-center mx-auto mb-4">
                 <Bell className="w-8 h-8 text-kastom-muted" />
               </div>
-              <p className="text-kastom-muted font-medium">No notifications</p>
+              <p className="text-kastom-muted font-medium">No recent activity</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {notifications.map((notif) => (
-                <div key={notif.id} className={`p-3 rounded-xl border ${notif.read ? 'border-kastom-border/50' : 'border-kastom-green/30 bg-kastom-green-bg'}`}>
-                  <p className="font-medium text-kastom-dark text-sm">{notif.title}</p>
-                  <p className="text-xs text-kastom-muted mt-1">{notif.message}</p>
-                  <p className="text-xs text-kastom-muted/60 mt-1">{formatDate(notif.createdAt)}</p>
+            <div className="space-y-2">
+              {notifications.slice(0, 5).map((notif) => (
+                <div key={notif.id} className="flex items-center gap-3 p-2.5 bg-kastom-cream rounded-xl border border-kastom-border/50">
+                  <div className="w-8 h-8 rounded-lg bg-kastom-green-bg flex items-center justify-center flex-shrink-0">
+                    <Bell className="w-4 h-4 text-kastom-green" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-kastom-dark text-sm">{notif.title}</p>
+                    <p className="text-xs text-kastom-muted">{notif.message}</p>
+                  </div>
+                  <span className="text-xs text-kastom-muted/60">{formatDate(notif.createdAt)}</span>
                 </div>
               ))}
             </div>
           )}
         </motion.div>
       </div>
+
+      {/* Approved Requests Summary */}
+      {approvedRequests.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="card mt-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-kastom-dark flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-kastom-success" />
+              Recently Approved
+            </h2>
+            <Link to="/witness-approved" className="text-sm text-purple-600 hover:underline font-medium">
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {approvedRequests.slice(0, 3).map((request) => (
+              <div key={request.id} className="flex items-center justify-between p-2.5 bg-green-50 rounded-xl border border-green-200">
+                <div>
+                  <p className="font-medium text-kastom-dark text-sm">
+                    {request.legacyProfile?.title || 'Estate'}
+                  </p>
+                  <p className="text-xs text-kastom-muted">Verified on {formatDate(request.timestamp)}</p>
+                </div>
+                <span className="badge badge-success">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Approved
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

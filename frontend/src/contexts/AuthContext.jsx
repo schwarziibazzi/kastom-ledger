@@ -47,6 +47,25 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const signup = async (userData) => {
+    try {
+      const response = await api.post('/auth/signup', userData);
+      const { token, user } = response.data;
+      
+      localStorage.setItem('kastom_token', token);
+      setToken(token);
+      setUser(user);
+      
+      return { success: true, user };
+    } catch (error) {
+      console.error('Signup error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Signup failed' 
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('kastom_token');
     setToken(null);
@@ -58,6 +77,7 @@ export function AuthProvider({ children }) {
     loading,
     token,
     login,
+    signup,
     logout,
     isAuthenticated: !!user
   };

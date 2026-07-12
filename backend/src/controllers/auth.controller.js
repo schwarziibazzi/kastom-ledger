@@ -78,6 +78,29 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+exports.getMockUsers = async (req, res) => {
+  try {
+    const mockUsers = sevispassService.getMockUsers();
+    res.json({
+      success: true,
+      users: mockUsers
+    });
+  } catch (error) {
+    console.error('Get mock users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch mock users'
+    });
+  }
+};
+
+exports.logout = async (req, res) => {
+  res.json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+};
+
 exports.getUserRole = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -98,27 +121,124 @@ exports.getUserRole = async (req, res) => {
   }
 };
 
-exports.getMockUsers = async (req, res) => {
+exports.updateUserRole = async (req, res) => {
   try {
-    const mockUsers = sevispassService.getMockUsers();
+    const { role } = req.body;
+    const userId = req.user.id;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        name: true,
+        sevispassUid: true,
+        role: true
+      }
+    });
+
     res.json({
       success: true,
-      users: mockUsers
+      message: 'Role updated successfully',
+      user
     });
   } catch (error) {
-    console.error('Get mock users error:', error);
+    console.error('Update role error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch mock users'
+      message: 'Failed to update role'
     });
   }
 };
 
-exports.logout = async (req, res) => {
-  // In a real application, you might want to invalidate the token
-  // For now, we just respond with success
-  res.json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+exports.signup = async (req, res) => {
+  try {
+    const { sevispassUid, name, dateOfBirth, province, phone, occupation, role, profilePhoto } = req.body;
+
+    // Check if user already exists
+    let user = await prisma.user.findUnique({
+      where: { sevispassUid }
+    });
+
+    if (user) {
+      // Update the user's role if they already exist
+      user = await prisma.user.update({
+        where: { sevispassUid },
+        data: {
+          name: name || user.name,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : user.dateOfBirth,
+          province: province || user.province,
+          phone: phone || user.phone,
+          occupation: occupation || user.occupation,
+          profilePhoto: profilePhoto || user.profilePhoto,
+          role: role || user.role,
+          verificationStatus: 'verified'
+        }
+      });
+
+      // Log to ledger
+      await ledgerService.createEntry(
+        'USER_SIGNUP',
+        sevispassUid,
+        {
+          user: user.name,
+          role: user.role,
+          timestamp: new Date().toISOString()
+        }
+      );
+
+      // Generate token
+      const token = sevispassService.generateToken(user);
+
+      return res.status(200).json({
+        success: true,
+        message: 'User updated successfully',
+        user,
+        token
+      });
+    }
+
+    // Create new user with role
+    user = await prisma.user.create({
+      data: {
+        sevispassUid,
+        name: name || 'New User',
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : new Date('1990-01-01'),
+        province: province || 'National Capital District',
+        phone: phone || null,
+        occupation: occupation || null,
+        profilePhoto: profilePhoto || null,
+        role: role || 'OWNER',
+        verificationStatus: 'verified'
+      }
+    });
+
+    // Log to ledger
+    await ledgerService.createEntry(
+      'USER_SIGNUP',
+      sevispassUid,
+      {
+        user: user.name,
+        role: user.role,
+        timestamp: new Date().toISOString()
+      }
+    );
+
+    // Generate token
+    const token = sevispassService.generateToken(user);
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      user,
+      token
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create user',
+      error: error.message
+    });
+  }
 };

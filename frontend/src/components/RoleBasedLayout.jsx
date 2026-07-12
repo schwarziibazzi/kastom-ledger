@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRole } from '../contexts/RoleContext';
@@ -23,7 +23,11 @@ import {
   Activity,
   FileBarChart,
   User,
-  Eye
+  Eye,
+  Gift,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,16 +45,33 @@ const iconMap = {
   'Activity': Activity,
   'FileBarChart': FileBarChart,
   'User': User,
-  'Eye': Eye
+  'Eye': Eye,
+  'Gift': Gift,
+  'CheckCircle': CheckCircle,
+  'XCircle': XCircle,
+  'AlertCircle': AlertCircle
 };
 
 function RoleBasedLayout() {
   const { user, logout } = useAuth();
-  const { role, menuItems, isAdmin } = useRole();
+  const { role, menuItems, isAdmin, isOwner, isBeneficiary, isWitness } = useRole();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      // In production, fetch from API
+      setUnreadCount(3);
+    } catch (error) {
+      console.error('Fetch notifications error:', error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -70,12 +91,25 @@ function RoleBasedLayout() {
   const getRoleLabel = () => {
     const labels = {
       OWNER: 'Inheritance Owner',
-      BENEFICIARY: 'Beneficiary',
+      BENEFICIARY: 'Beneficiary / Heir',
       WITNESS: 'Witness',
       ADMINISTRATOR: 'Administrator'
     };
     return labels[role] || 'User';
   };
+
+  const getRoleIcon = () => {
+    const icons = {
+      OWNER: Shield,
+      BENEFICIARY: Gift,
+      WITNESS: UserCheck,
+      ADMINISTRATOR: Shield
+    };
+    const Icon = icons[role] || Shield;
+    return Icon;
+  };
+
+  const RoleIcon = getRoleIcon();
 
   return (
     <div className="min-h-screen bg-kastom-cream">
@@ -192,15 +226,17 @@ function RoleBasedLayout() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Search */}
-              <button 
-                className="p-2 rounded-lg hover:bg-kastom-cream transition-colors"
-                onClick={() => navigate('/search')}
-              >
-                <Search className="w-5 h-5 text-kastom-muted" />
-              </button>
+              {/* Search - Only for Owner and Admin */}
+              {(isOwner || isAdmin) && (
+                <button 
+                  className="p-2 rounded-lg hover:bg-kastom-cream transition-colors"
+                  onClick={() => navigate('/search')}
+                >
+                  <Search className="w-5 h-5 text-kastom-muted" />
+                </button>
+              )}
               
-              {/* Notifications */}
+              {/* Notifications - All users */}
               <button 
                 className="p-2 rounded-lg hover:bg-kastom-cream transition-colors relative"
                 onClick={() => navigate('/notifications')}
@@ -222,8 +258,8 @@ function RoleBasedLayout() {
                   <div className="hidden md:block">
                     <p className="text-sm font-medium text-kastom-dark">{user?.name || 'User'}</p>
                     <div className="flex items-center gap-1.5">
-                      <Shield className="w-3 h-3 text-kastom-green" />
-                      <span className="text-xs text-kastom-green font-medium">SevisPass Verified</span>
+                      <RoleIcon className="w-3 h-3 text-kastom-green" />
+                      <span className="text-xs text-kastom-green font-medium">{getRoleLabel()}</span>
                     </div>
                   </div>
                 </div>

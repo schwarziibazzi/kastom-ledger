@@ -52,13 +52,16 @@ export function RoleProvider({ children }) {
       ],
       BENEFICIARY: [
         { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
-        { label: 'My Estates', path: '/my-estates', icon: 'Home' },
+        { label: 'My Inherited Estates', path: '/my-estates', icon: 'Gift' },
+        { label: 'Inherited Assets', path: '/inherited-assets', icon: 'Package' },
         { label: 'Documents', path: '/documents', icon: 'FolderOpen' },
         { label: 'Messages', path: '/messages', icon: 'MessageSquare' }
       ],
       WITNESS: [
         { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
-        { label: 'Witness Requests', path: '/witness-requests', icon: 'UserCheck' }
+        { label: 'Pending Reviews', path: '/witness-requests', icon: 'Clock' },
+        { label: 'Approved', path: '/witness-approved', icon: 'CheckCircle' },
+        { label: 'Rejected', path: '/witness-rejected', icon: 'XCircle' }
       ],
       ADMINISTRATOR: [
         { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
@@ -82,23 +85,36 @@ export function RoleProvider({ children }) {
         canManageWitnesses: true,
         canViewTimeline: true,
         canEditWill: true,
-        canViewAdmin: false
+        canViewAdmin: false,
+        canEditInheritance: true,
+        canUploadDocuments: true,
+        canDeleteDocuments: true
       },
       BENEFICIARY: {
         canViewEstates: true,
         canViewAssets: true,
         canViewDocuments: true,
+        canViewMessages: true,
         canEditEstate: false,
         canManageAssets: false,
         canManageBeneficiaries: false,
         canEditWill: false,
-        canViewAdmin: false
+        canViewAdmin: false,
+        canEditInheritance: false,
+        canUploadDocuments: false,
+        canDeleteDocuments: false
       },
       WITNESS: {
         canViewRequests: true,
         canApproveRequests: true,
         canRejectRequests: true,
-        canViewAdmin: false
+        canViewEstate: false,
+        canViewAssets: false,
+        canViewBeneficiaries: false,
+        canViewAdmin: false,
+        canEditInheritance: false,
+        canUploadDocuments: false,
+        canDeleteDocuments: false
       },
       ADMINISTRATOR: {
         canManageUsers: true,
@@ -106,7 +122,9 @@ export function RoleProvider({ children }) {
         canViewSystemStats: true,
         canVerifyRequests: true,
         canViewAdmin: true,
-        canEditInheritance: false
+        canEditInheritance: false,
+        canUploadDocuments: false,
+        canDeleteDocuments: false
       }
     };
     return permissionsMap[role] || permissionsMap.OWNER;

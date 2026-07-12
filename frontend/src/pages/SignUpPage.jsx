@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { 
@@ -13,13 +13,16 @@ import {
   CheckCircle,
   Circle,
   Upload,
-  Camera
+  Camera,
+  Users,
+  UserCheck,
+  Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function SignUpPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,9 +37,24 @@ function SignUpPage() {
   });
 
   const roles = [
-    { value: 'OWNER', label: 'Inheritance Owner', description: 'Create and manage your estate' },
-    { value: 'BENEFICIARY', label: 'Beneficiary / Heir', description: 'View inherited information' },
-    { value: 'WITNESS', label: 'Witness', description: 'Verify and approve requests' }
+    { 
+      value: 'OWNER', 
+      label: 'Inheritance Owner', 
+      description: 'Create and manage your estate and inheritance',
+      icon: Shield
+    },
+    { 
+      value: 'BENEFICIARY', 
+      label: 'Beneficiary / Heir', 
+      description: 'View inherited information and assets assigned to you',
+      icon: Gift
+    },
+    { 
+      value: 'WITNESS', 
+      label: 'Witness', 
+      description: 'Verify and approve inheritance requests',
+      icon: UserCheck
+    }
   ];
 
   const provinces = [
@@ -58,6 +76,14 @@ function SignUpPage() {
     'New Ireland Province',
     'Bougainville',
     'Central Province'
+  ];
+
+  const mockUsers = [
+    { uid: 'MOCK-UID-001', name: 'John Kasi', province: 'National Capital District' },
+    { uid: 'MOCK-UID-002', name: 'Mary Wama', province: 'Morobe Province' },
+    { uid: 'MOCK-UID-003', name: 'Peter Tau', province: 'Eastern Highlands Province' },
+    { uid: 'MOCK-UID-004', name: 'Sarah Kila', province: 'West New Britain Province' },
+    { uid: 'MOCK-UID-005', name: 'Admin User', province: 'National Capital District' }
   ];
 
   const handleNext = () => {
@@ -85,16 +111,29 @@ function SignUpPage() {
     setLoading(true);
 
     try {
-      // Register user with role
-      const response = await login(formData.sevispassUid);
-      if (response.success) {
-        toast.success('Account created successfully!');
-        navigate('/dashboard');
+      const result = await signup(formData);
+      if (result.success) {
+        toast.success(`Welcome, ${result.user.name}!`);
+        // Navigate based on role
+        const role = result.user.role || formData.role;
+        switch(role) {
+          case 'BENEFICIARY':
+            navigate('/my-estates');
+            break;
+          case 'WITNESS':
+            navigate('/witness-dashboard');
+            break;
+          case 'ADMINISTRATOR':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/dashboard');
+        }
       } else {
-        toast.error(response.error || 'Failed to create account');
+        toast.error(result.error || 'Failed to create account');
       }
     } catch (error) {
-      toast.error('An error occurred');
+      toast.error('An error occurred during signup');
     } finally {
       setLoading(false);
     }
@@ -125,12 +164,7 @@ function SignUpPage() {
             <p className="text-sm text-kastom-muted">Select your SevisPass account to begin</p>
 
             <div className="space-y-3">
-              {[
-                { uid: 'MOCK-UID-001', name: 'John Kasi', province: 'National Capital District' },
-                { uid: 'MOCK-UID-002', name: 'Mary Wama', province: 'Morobe Province' },
-                { uid: 'MOCK-UID-003', name: 'Peter Tau', province: 'Eastern Highlands Province' },
-                { uid: 'MOCK-UID-004', name: 'Sarah Kila', province: 'West New Britain Province' }
-              ].map((user) => (
+              {mockUsers.map((user) => (
                 <label
                   key={user.uid}
                   className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200
@@ -144,7 +178,15 @@ function SignUpPage() {
                     name="sevispassUid"
                     value={user.uid}
                     checked={formData.sevispassUid === user.uid}
-                    onChange={(e) => setFormData({ ...formData, sevispassUid: e.target.value, name: user.name })}
+                    onChange={(e) => {
+                      const selectedUser = mockUsers.find(u => u.uid === e.target.value);
+                      setFormData({ 
+                        ...formData, 
+                        sevispassUid: e.target.value, 
+                        name: selectedUser?.name || '',
+                        province: selectedUser?.province || ''
+                      });
+                    }}
                     className="sr-only"
                   />
                   <div className="flex items-center flex-1 gap-3">
@@ -177,32 +219,40 @@ function SignUpPage() {
             <p className="text-sm text-kastom-muted">Select how you'll use Kastom Ledger</p>
 
             <div className="space-y-3">
-              {roles.map((role) => (
-                <label
-                  key={role.value}
-                  className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200
-                    ${formData.role === role.value
-                      ? 'border-kastom-green bg-kastom-green-bg ring-2 ring-kastom-green/20'
-                      : 'border-kastom-border hover:border-kastom-green/30 hover:bg-kastom-cream'
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="role"
-                    value={role.value}
-                    checked={formData.role === role.value}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="sr-only"
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium text-kastom-dark">{role.label}</p>
-                    <p className="text-sm text-kastom-muted">{role.description}</p>
-                  </div>
-                  {formData.role === role.value && (
-                    <CheckCircle className="w-5 h-5 text-kastom-green flex-shrink-0" />
-                  )}
-                </label>
-              ))}
+              {roles.map((role) => {
+                const Icon = role.icon;
+                return (
+                  <label
+                    key={role.value}
+                    className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200
+                      ${formData.role === role.value
+                        ? 'border-kastom-green bg-kastom-green-bg ring-2 ring-kastom-green/20'
+                        : 'border-kastom-border hover:border-kastom-green/30 hover:bg-kastom-cream'
+                      }`}
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={role.value}
+                      checked={formData.role === role.value}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-center flex-1 gap-3">
+                      <div className="w-10 h-10 rounded-full bg-kastom-green/10 flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-5 h-5 text-kastom-green" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-kastom-dark">{role.label}</p>
+                        <p className="text-sm text-kastom-muted">{role.description}</p>
+                      </div>
+                      {formData.role === role.value && (
+                        <CheckCircle className="w-5 h-5 text-kastom-green flex-shrink-0" />
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </motion.div>
         );
@@ -427,9 +477,9 @@ function SignUpPage() {
         <div className="text-center mt-6">
           <p className="text-sm text-kastom-muted">
             Already have an account?{' '}
-            <a href="/login" className="text-kastom-green hover:underline font-medium">
+            <Link to="/login" className="text-kastom-green hover:underline font-medium">
               Sign in
-            </a>
+            </Link>
           </p>
         </div>
       </motion.div>

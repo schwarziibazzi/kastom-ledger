@@ -36,10 +36,13 @@ import BeneficiaryDashboard from './pages/beneficiary/BeneficiaryDashboard';
 import BeneficiaryEstateView from './pages/beneficiary/BeneficiaryEstateView';
 import BeneficiaryDocuments from './pages/beneficiary/BeneficiaryDocuments';
 import BeneficiaryMessages from './pages/beneficiary/BeneficiaryMessages';
+import BeneficiaryAssets from './pages/beneficiary/BeneficiaryAssets';
 
 // Pages - Witness
 import WitnessDashboard from './pages/witness/WitnessDashboard';
 import WitnessRequestDetail from './pages/witness/WitnessRequestDetail';
+import WitnessApproved from './pages/witness/WitnessApproved';
+import WitnessRejected from './pages/witness/WitnessRejected';
 
 // Pages - Admin
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -52,6 +55,29 @@ import ReportsPage from './pages/admin/ReportsPage';
 import Ledger from './pages/Ledger';
 import Documents from './pages/Documents';
 import Profile from './pages/Profile';
+import ClaimInvitation from './pages/ClaimInvitation';
+
+// Role-based redirect component
+function RoleRedirect() {
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  
+  if (!user) return <Navigate to="/login" replace />;
+  
+  const role = user.role || 'OWNER';
+  
+  switch(role) {
+    case 'BENEFICIARY':
+      return <Navigate to="/my-estates" replace />;
+    case 'WITNESS':
+      return <Navigate to="/witness-dashboard" replace />;
+    case 'ADMINISTRATOR':
+      return <Navigate to="/admin" replace />;
+    default:
+      return <Navigate to="/dashboard" replace />;
+  }
+}
 
 function App() {
   const { loading } = useAuth();
@@ -101,9 +127,13 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/claim/:token" element={<ClaimInvitation />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
+            {/* Role-based redirect */}
+            <Route path="/dashboard" element={<RoleRedirect />} />
+            
             <Route element={<RoleBasedLayout />}>
               {/* Common Routes */}
               <Route path="/search" element={<SearchPage />} />
@@ -112,7 +142,6 @@ function App() {
               <Route path="/profile" element={<Profile />} />
 
               {/* Owner Routes */}
-              <Route path="/dashboard" element={<OwnerDashboard />} />
               <Route path="/estate" element={<EstatePage />} />
               <Route path="/estate/create" element={<EstatePage />} />
               <Route path="/estate/:id" element={<EstateDetailPage />} />
@@ -130,16 +159,20 @@ function App() {
               <Route path="/witness-requests/:id" element={<WitnessRequestDetailPage />} />
               <Route path="/ledger" element={<Ledger />} />
               <Route path="/documents" element={<Documents />} />
+              <Route path="/owner-dashboard" element={<OwnerDashboard />} />
 
               {/* Beneficiary Routes */}
               <Route path="/my-estates" element={<BeneficiaryDashboard />} />
               <Route path="/beneficiary/estate/:id" element={<BeneficiaryEstateView />} />
               <Route path="/beneficiary/documents" element={<BeneficiaryDocuments />} />
               <Route path="/messages" element={<BeneficiaryMessages />} />
+              <Route path="/inherited-assets" element={<BeneficiaryAssets />} />
 
               {/* Witness Routes */}
               <Route path="/witness-dashboard" element={<WitnessDashboard />} />
               <Route path="/witness-requests/:id" element={<WitnessRequestDetail />} />
+              <Route path="/witness-approved" element={<WitnessApproved />} />
+              <Route path="/witness-rejected" element={<WitnessRejected />} />
 
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />
