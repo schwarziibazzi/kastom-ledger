@@ -6,7 +6,7 @@ const RoleContext = createContext();
 
 export function RoleProvider({ children }) {
   const { user } = useAuth();
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState('OWNER');
   const [loading, setLoading] = useState(true);
   const [menuItems, setMenuItems] = useState([]);
   const [permissions, setPermissions] = useState({});
@@ -15,7 +15,7 @@ export function RoleProvider({ children }) {
     if (user) {
       fetchRole();
     } else {
-      setRole(null);
+      setRole('OWNER');
       setLoading(false);
     }
   }, [user]);
@@ -23,15 +23,16 @@ export function RoleProvider({ children }) {
   const fetchRole = async () => {
     try {
       const response = await api.get('/auth/role');
-      const userRole = response.data.role || 'OWNER';
+      const userRole = response.data.role || user?.role || 'OWNER';
       setRole(userRole);
       setMenuItems(getMenuItems(userRole));
       setPermissions(getPermissions(userRole));
     } catch (error) {
       console.error('Fetch role error:', error);
-      setRole('OWNER');
-      setMenuItems(getMenuItems('OWNER'));
-      setPermissions(getPermissions('OWNER'));
+      const fallbackRole = user?.role || 'OWNER';
+      setRole(fallbackRole);
+      setMenuItems(getMenuItems(fallbackRole));
+      setPermissions(getPermissions(fallbackRole));
     } finally {
       setLoading(false);
     }
@@ -51,20 +52,19 @@ export function RoleProvider({ children }) {
         { label: 'Settings', path: '/settings', icon: 'Settings' }
       ],
       BENEFICIARY: [
-        { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
-        { label: 'My Inherited Estates', path: '/my-estates', icon: 'Gift' },
+        { label: 'Dashboard', path: '/my-estates', icon: 'LayoutDashboard' },
         { label: 'Inherited Assets', path: '/inherited-assets', icon: 'Package' },
-        { label: 'Documents', path: '/documents', icon: 'FolderOpen' },
+        { label: 'Documents', path: '/beneficiary/documents', icon: 'FolderOpen' },
         { label: 'Messages', path: '/messages', icon: 'MessageSquare' }
       ],
       WITNESS: [
-        { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
+        { label: 'Dashboard', path: '/witness-dashboard', icon: 'LayoutDashboard' },
         { label: 'Pending Reviews', path: '/witness-requests', icon: 'Clock' },
         { label: 'Approved', path: '/witness-approved', icon: 'CheckCircle' },
         { label: 'Rejected', path: '/witness-rejected', icon: 'XCircle' }
       ],
       ADMINISTRATOR: [
-        { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
+        { label: 'Dashboard', path: '/admin', icon: 'LayoutDashboard' },
         { label: 'Users', path: '/users', icon: 'Users' },
         { label: 'Activity Logs', path: '/logs', icon: 'Activity' },
         { label: 'Audit', path: '/audit', icon: 'Shield' },
@@ -84,11 +84,7 @@ export function RoleProvider({ children }) {
         canManageBeneficiaries: true,
         canManageWitnesses: true,
         canViewTimeline: true,
-        canEditWill: true,
-        canViewAdmin: false,
-        canEditInheritance: true,
-        canUploadDocuments: true,
-        canDeleteDocuments: true
+        canEditWill: true
       },
       BENEFICIARY: {
         canViewEstates: true,
@@ -98,33 +94,18 @@ export function RoleProvider({ children }) {
         canEditEstate: false,
         canManageAssets: false,
         canManageBeneficiaries: false,
-        canEditWill: false,
-        canViewAdmin: false,
-        canEditInheritance: false,
-        canUploadDocuments: false,
-        canDeleteDocuments: false
+        canEditWill: false
       },
       WITNESS: {
         canViewRequests: true,
         canApproveRequests: true,
-        canRejectRequests: true,
-        canViewEstate: false,
-        canViewAssets: false,
-        canViewBeneficiaries: false,
-        canViewAdmin: false,
-        canEditInheritance: false,
-        canUploadDocuments: false,
-        canDeleteDocuments: false
+        canRejectRequests: true
       },
       ADMINISTRATOR: {
         canManageUsers: true,
         canViewAuditLogs: true,
         canViewSystemStats: true,
-        canVerifyRequests: true,
-        canViewAdmin: true,
-        canEditInheritance: false,
-        canUploadDocuments: false,
-        canDeleteDocuments: false
+        canVerifyRequests: true
       }
     };
     return permissionsMap[role] || permissionsMap.OWNER;

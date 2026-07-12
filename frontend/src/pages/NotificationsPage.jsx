@@ -217,6 +217,21 @@ function NotificationsPage() {
           filteredNotifications.map((notification) => {
             const Icon = getNotificationIcon(notification.type);
             const colorClass = getNotificationColor(notification.type);
+            
+            // Generate correct link based on notification type
+            let linkPath = notification.link || '#';
+            if (notification.type === 'DIGITAL_WILL_CREATED' || notification.type === 'DIGITAL_WILL_SUBMITTED') {
+              linkPath = `/will/${notification.estateId}`;
+            } else if (notification.type === 'DOCUMENT_UPLOADED') {
+              linkPath = '/documents';
+            } else if (notification.type === 'BENEFICIARY_ADDED' || notification.type === 'BENEFICIARY_ACCEPTED') {
+              linkPath = `/beneficiaries`;
+            } else if (notification.type === 'ASSET_ADDED') {
+              linkPath = '/assets';
+            } else if (notification.type === 'ESTATE_UPDATED' || notification.type === 'ESTATE_CREATED') {
+              linkPath = `/estate/${notification.estateId}`;
+            }
+
             return (
               <motion.div
                 key={notification.id}
@@ -257,12 +272,11 @@ function NotificationsPage() {
                         </button>
                       )}
                     </div>
-                    {notification.link && (
+                    {linkPath && linkPath !== '#' && (
                       <Link 
-                        to={notification.link}
+                        to={linkPath}
                         className="inline-block mt-2 text-sm text-kastom-green hover:underline font-medium"
                         onClick={() => {
-                          // Mark as read when clicked
                           if (!notification.read) {
                             markAsRead(notification.id);
                           }

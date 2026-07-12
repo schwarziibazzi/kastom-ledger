@@ -8,5 +8,7 @@ router.post('/:witnessId/approve', authenticate, witnessController.approveWitnes
 router.get('/requests', authenticate, witnessController.getWitnessRequests);
 router.get('/requests/:id', authenticate, witnessController.getWitnessRequest);
 router.post('/:id/reject', authenticate, witnessController.rejectWitness);
+router.get('/approved', authenticate, witnessController.getApproved);
+router.get('/rejected', authenticate, witnessController.getRejected);
 
 module.exports = router;

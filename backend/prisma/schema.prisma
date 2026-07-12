@@ -33,7 +33,6 @@ model User {
   executorOf           Estate[]           @relation("EstateExecutor")
   beneficiaryOf        Beneficiary[]
   estateWitness        EstateWitness[]
-  digitalWillWitness   WillWitness[]
   notifications        Notification[]
   activityLogs         ActivityLog[]
   institutionRequests  InstitutionRequest[]
@@ -266,15 +265,15 @@ model DigitalWill {
 model WillWitness {
   id                 String            @id @default(uuid())
   willId             String
-  witnessId          String
   name               String
+  email              String?
+  relationship       String?
   signature          String?
   verifiedAt         DateTime?
   status             String            @default("pending")
   
   // Relations
   will               DigitalWill       @relation(fields: [willId], references: [id])
-  witness            User              @relation(fields: [witnessId], references: [id])
   
   @@map("will_witnesses")
 }

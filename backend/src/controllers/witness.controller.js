@@ -326,6 +326,84 @@ exports.approveWitness = async (req, res) => {
   }
 };
 
+exports.getApproved = async (req, res) => {
+  try {
+    const witnessUid = req.user.sevispassUid;
+
+    const requests = await prisma.witness.findMany({
+      where: {
+        witnessUid,
+        digitalSignature: { not: null }
+      },
+      include: {
+        successor: {
+          include: {
+            owner: {
+              select: {
+                name: true,
+                sevispassUid: true
+              }
+            },
+            legacyProfile: true
+          }
+        },
+        legacyProfile: true
+      },
+      orderBy: { timestamp: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      requests
+    });
+  } catch (error) {
+    console.error('Get approved witnesses error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch approved requests'
+    });
+  }
+};
+
+exports.getRejected = async (req, res) => {
+  try {
+    const witnessUid = req.user.sevispassUid;
+
+    const requests = await prisma.witness.findMany({
+      where: {
+        witnessUid,
+        digitalSignature: { contains: 'REJECTED' }
+      },
+      include: {
+        successor: {
+          include: {
+            owner: {
+              select: {
+                name: true,
+                sevispassUid: true
+              }
+            },
+            legacyProfile: true
+          }
+        },
+        legacyProfile: true
+      },
+      orderBy: { timestamp: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      requests
+    });
+  } catch (error) {
+    console.error('Get rejected witnesses error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch rejected requests'
+    });
+  }
+};
+
 // Reject witness request (Witness)
 exports.rejectWitness = async (req, res) => {
   try {

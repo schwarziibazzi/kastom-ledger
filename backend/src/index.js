@@ -21,6 +21,7 @@ const searchRoutes = require('./routes/search.routes');
 const adminRoutes = require('./routes/admin.routes');
 const willRoutes = require('./routes/will.routes');
 const documentsRoutes = require('./routes/documents.routes');
+const beneficiaryRoutes = require('./routes/beneficiary.routes');
 
 const { errorHandler } = require('./middleware/error.middleware');
 
@@ -74,6 +75,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/will', willRoutes);
 app.use('/api/documents', documentsRoutes);
+app.use('/api/beneficiary', beneficiaryRoutes);
 
 // Error handler
 app.use(errorHandler);

@@ -11,13 +11,21 @@ class PDFService {
   }
 
   ensureDirectoryExists() {
-    if (!fs.existsSync(this.outputDir)) {
-      fs.mkdirSync(this.outputDir, { recursive: true });
+    try {
+      if (!fs.existsSync(this.outputDir)) {
+        fs.mkdirSync(this.outputDir, { recursive: true });
+        console.log('📁 PDF directory created at:', this.outputDir);
+      }
+    } catch (error) {
+      console.error('Failed to create PDF directory:', error);
     }
   }
 
   async generateDigitalWill(willId, userId) {
     try {
+      // Ensure directory exists before generating
+      this.ensureDirectoryExists();
+
       const will = await prisma.digitalWill.findUnique({
         where: { id: willId },
         include: {
@@ -54,16 +62,7 @@ class PDFService {
               }
             }
           },
-          witnesses: {
-            include: {
-              witness: {
-                select: {
-                  name: true,
-                  sevispassUid: true
-                }
-              }
-            }
-          }
+          witnesses: true
         }
       });
 
@@ -71,7 +70,8 @@ class PDFService {
         throw new Error('Digital will not found');
       }
 
-      const filename = `will_${will.estate.owner.name.replace(/\s/g, '_')}_${Date.now()}.pdf`;
+      const safeName = will.estate.owner.name.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `will_${safeName}_${Date.now()}.pdf`;
       const filePath = path.join(this.outputDir, filename);
 
       const doc = new PDFDocument({
@@ -97,7 +97,6 @@ class PDFService {
         .text('Digital Will', { align: 'center' })
         .moveDown(1);
 
-      // Divider
       doc
         .moveTo(50, doc.y)
         .lineTo(550, doc.y)
@@ -106,7 +105,6 @@ class PDFService {
         .stroke()
         .moveDown(1);
 
-      // Document ID
       doc
         .fontSize(10)
         .font('Helvetica')
@@ -171,7 +169,7 @@ class PDFService {
             .fontSize(11)
             .font('Helvetica-Oblique')
             .fillColor('#6B7280')
-            .text('📢 Audio recording attached (transcript not available)', { width: 490 })
+            .text('📢 Audio recording attached', { width: 490 })
             .moveDown(1);
         }
       }
@@ -197,7 +195,7 @@ class PDFService {
             .fontSize(11)
             .font('Helvetica-Oblique')
             .fillColor('#6B7280')
-            .text('📢 Audio recording attached (transcript not available)', { width: 490 })
+            .text('📢 Audio recording attached', { width: 490 })
             .moveDown(1);
         }
       }
@@ -278,7 +276,7 @@ class PDFService {
             .fontSize(11)
             .font('Helvetica-Oblique')
             .fillColor('#6B7280')
-            .text('📢 Audio recording attached (transcript not available)', { width: 490 })
+            .text('📢 Audio recording attached', { width: 490 })
             .moveDown(1);
         }
       }
@@ -302,6 +300,7 @@ class PDFService {
             .fontSize(11)
             .font('Helvetica')
             .fillColor('#4B5563')
+            .text(`   Email: ${witness.email || 'N/A'}`)
             .text(`   Status: ${witness.status || 'Pending'}`)
             .text(`   Signature: ${witness.signature || 'Not signed'}`)
             .moveDown(0.5);
@@ -382,14 +381,15 @@ class PDFService {
         stream.on('error', reject);
       });
 
-      // Save to database
-      await prisma.document.create({
+      const fileStats = fs.statSync(filePath);
+
+      const document = await prisma.document.create({
         data: {
           title: `Digital Will - ${will.estate.title}`,
           description: `Digital will generated from Kastom Ledger for ${will.estate.owner.name}`,
           fileUrl: `/pdfs/${filename}`,
           fileType: 'pdf',
-          fileSize: fs.statSync(filePath).size,
+          fileSize: fileStats.size,
           mimeType: 'application/pdf',
           visibility: 'private',
           uploadedBy: userId,
@@ -403,34 +403,11 @@ class PDFService {
         success: true,
         filePath,
         filename,
-        url: `/pdfs/${filename}`
+        url: `/pdfs/${filename}`,
+        id: document.id
       };
     } catch (error) {
       console.error('PDF Generation Error:', error);
-      throw error;
-    }
-  }
-
-  async getWillPDF(willId, userId) {
-    try {
-      const document = await prisma.document.findFirst({
-        where: {
-          estate: {
-            ownerId: userId
-          },
-          category: 'will_audio',
-          tags: { has: 'digital_will' }
-        },
-        orderBy: { createdAt: 'desc' }
-      });
-
-      if (!document) {
-        throw new Error('PDF not found');
-      }
-
-      return document;
-    } catch (error) {
-      console.error('Get PDF error:', error);
       throw error;
     }
   }

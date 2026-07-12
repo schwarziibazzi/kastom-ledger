@@ -2,7 +2,6 @@ const { PrismaClient } = require('@prisma/client');
 const ledgerService = require('../services/ledger.service');
 const notificationService = require('../services/notification.service');
 const pdfService = require('../services/pdf.service');
-const transcriptionService = require('../services/transcription.service');
 const fs = require('fs');
 const path = require('path');
 const prisma = new PrismaClient();
@@ -22,7 +21,6 @@ exports.createWill = async (req, res) => {
     const userId = req.user.id;
     const sevispassUid = req.user.sevispassUid;
 
-    // Validate estateId
     if (!estateId) {
       return res.status(400).json({
         success: false,
@@ -30,7 +28,6 @@ exports.createWill = async (req, res) => {
       });
     }
 
-    // Check if user owns the estate
     const estate = await prisma.estate.findFirst({
       where: { id: estateId, ownerId: userId }
     });
@@ -42,43 +39,81 @@ exports.createWill = async (req, res) => {
       });
     }
 
-    // Check if will already exists
     const existing = await prisma.digitalWill.findUnique({
       where: { estateId }
     });
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'A digital will already exists for this estate'
+      const updatedWill = await prisma.digitalWill.update({
+        where: { id: existing.id },
+        data: {
+          introduction: introduction || existing.introduction,
+          introductionAudio: introductionAudio !== undefined ? introductionAudio : existing.introductionAudio,
+          executorNotes: executorNotes || existing.executorNotes,
+          executorAudio: executorAudio !== undefined ? executorAudio : existing.executorAudio,
+          personalMessages: personalMessages || existing.personalMessages,
+          messagesAudio: messagesAudio !== undefined ? messagesAudio : existing.messagesAudio,
+          status: 'draft'
+        }
+      });
+
+      if (witnesses && Array.isArray(witnesses) && witnesses.length > 0) {
+        await prisma.willWitness.deleteMany({
+          where: { willId: existing.id }
+        });
+        
+        for (const witness of witnesses) {
+          if (!witness.name) continue;
+          await prisma.willWitness.create({
+            data: {
+              willId: existing.id,
+              name: witness.name,
+              email: witness.email || null,
+              relationship: witness.relationship || null,
+              status: 'pending'
+            }
+          });
+        }
+      }
+
+      await ledgerService.createEntry(
+        'DIGITAL_WILL_UPDATED',
+        sevispassUid,
+        {
+          estateId,
+          willId: existing.id
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Digital will updated successfully',
+        will: updatedWill
       });
     }
 
-    // Handle audio data - store as base64 string directly
-    // No need to transcribe for now, just store the audio data
-    const willData = {
-      estateId,
-      introduction: introduction || '',
-      introductionAudio: introductionAudio || null,
-      executorNotes: executorNotes || '',
-      executorAudio: executorAudio || null,
-      personalMessages: personalMessages || '',
-      messagesAudio: messagesAudio || null,
-      status: 'draft'
-    };
-
     const will = await prisma.digitalWill.create({
-      data: willData
+      data: {
+        estateId,
+        introduction: introduction || '',
+        introductionAudio: introductionAudio || null,
+        executorNotes: executorNotes || '',
+        executorAudio: executorAudio || null,
+        personalMessages: personalMessages || '',
+        messagesAudio: messagesAudio || null,
+        status: 'draft'
+      }
     });
 
-    // Add witnesses if provided
-    if (witnesses && witnesses.length > 0) {
+    if (witnesses && Array.isArray(witnesses) && witnesses.length > 0) {
       for (const witness of witnesses) {
+        if (!witness.name) continue;
         await prisma.willWitness.create({
           data: {
             willId: will.id,
             name: witness.name,
-            witnessId: witness.id || null,
+            email: witness.email || null,
+            relationship: witness.relationship || null,
             status: 'pending'
           }
         });
@@ -138,21 +173,11 @@ exports.getWills = async (req, res) => {
             status: true
           }
         },
-        witnesses: {
-          include: {
-            witness: {
-              select: {
-                name: true,
-                sevispassUid: true
-              }
-            }
-          }
-        }
+        witnesses: true
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    // Check if PDF exists for each will
     const willsWithPdf = await Promise.all(wills.map(async (will) => {
       const pdf = await prisma.document.findFirst({
         where: {
@@ -165,7 +190,8 @@ exports.getWills = async (req, res) => {
       return {
         ...will,
         hasPdf: !!pdf,
-        pdfUrl: pdf?.fileUrl || null
+        pdfUrl: pdf?.fileUrl || null,
+        pdfId: pdf?.id || null
       };
     }));
 
@@ -220,16 +246,7 @@ exports.getWill = async (req, res) => {
             }
           }
         },
-        witnesses: {
-          include: {
-            witness: {
-              select: {
-                name: true,
-                sevispassUid: true
-              }
-            }
-          }
-        }
+        witnesses: true
       }
     });
 
@@ -240,7 +257,6 @@ exports.getWill = async (req, res) => {
       });
     }
 
-    // Check if PDF exists
     const pdf = await prisma.document.findFirst({
       where: {
         estateId: will.estateId,
@@ -254,7 +270,8 @@ exports.getWill = async (req, res) => {
       will: {
         ...will,
         hasPdf: !!pdf,
-        pdfUrl: pdf?.fileUrl || null
+        pdfUrl: pdf?.fileUrl || null,
+        pdfId: pdf?.id || null
       }
     });
   } catch (error) {
@@ -357,13 +374,16 @@ exports.deleteWill = async (req, res) => {
       });
     }
 
-    // Delete associated PDF
     await prisma.document.deleteMany({
       where: {
         estateId: existing.estateId,
         category: 'will_audio',
         tags: { has: 'digital_will' }
       }
+    });
+
+    await prisma.willWitness.deleteMany({
+      where: { willId: id }
     });
 
     await prisma.digitalWill.delete({
@@ -417,7 +437,6 @@ exports.submitWill = async (req, res) => {
       });
     }
 
-    // Check if minimum witnesses met
     if (existing.witnesses.length < 2) {
       return res.status(400).json({
         success: false,
@@ -433,13 +452,14 @@ exports.submitWill = async (req, res) => {
       }
     });
 
-    // Generate PDF
+    // Generate PDF with better error handling
     let pdfResult = null;
+    let pdfError = null;
     try {
       pdfResult = await pdfService.generateDigitalWill(id, userId);
     } catch (pdfError) {
       console.error('PDF Generation Error:', pdfError);
-      // Continue even if PDF generation fails
+      pdfError = pdfError.message;
     }
 
     await ledgerService.createEntry(
@@ -456,18 +476,20 @@ exports.submitWill = async (req, res) => {
       userId,
       'ESTATE_UPDATED',
       'Digital Will Submitted',
-      `Your digital will has been submitted successfully${pdfResult ? ' and a PDF has been generated.' : '.'}`,
+      `Your digital will has been submitted successfully${pdfResult ? ' and a PDF has been generated.' : '. PDF generation failed. Please try again later.'}`,
       `/will/${will.id}`,
       existing.estateId
     );
 
     res.json({
       success: true,
-      message: 'Digital will submitted successfully',
+      message: pdfResult ? 'Digital will submitted successfully with PDF' : 'Digital will submitted but PDF generation failed',
       will: {
         ...will,
         pdfGenerated: !!pdfResult,
-        pdfUrl: pdfResult?.url || null
+        pdfUrl: pdfResult?.url || null,
+        pdfId: pdfResult?.id || null,
+        pdfError: pdfError
       }
     });
   } catch (error) {
@@ -501,7 +523,6 @@ exports.generateWillPDF = async (req, res) => {
       });
     }
 
-    // Check if PDF already exists
     const existingPdf = await prisma.document.findFirst({
       where: {
         estateId: will.estateId,
@@ -514,7 +535,8 @@ exports.generateWillPDF = async (req, res) => {
       return res.json({
         success: true,
         message: 'PDF already exists',
-        pdfUrl: existingPdf.fileUrl
+        pdfUrl: existingPdf.fileUrl,
+        pdfId: existingPdf.id
       });
     }
 
@@ -524,7 +546,7 @@ exports.generateWillPDF = async (req, res) => {
       userId,
       'DOCUMENT_UPLOADED',
       'Will PDF Generated',
-      'Your digital will PDF has been generated successfully.',
+      'Your digital will PDF has been generated successfully. View it in the Documents section.',
       `/documents`,
       will.estateId
     );
@@ -532,7 +554,8 @@ exports.generateWillPDF = async (req, res) => {
     res.json({
       success: true,
       message: 'PDF generated successfully',
-      pdfUrl: result.url
+      pdfUrl: result.url,
+      pdfId: result.id
     });
   } catch (error) {
     console.error('Generate PDF error:', error);

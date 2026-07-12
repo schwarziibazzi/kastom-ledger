@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useRole } from '../contexts/RoleContext';
+import { useRole } from '../contexts/RoleProvider';
+
 import { 
   LayoutDashboard, 
   Home,

@@ -437,3 +437,40 @@ exports.getStorageStats = async (req, res) => {
     });
   }
 };
+// Save audio file to documents
+exports.saveAudioToDocuments = async (audioData, title, description, userId, estateId) => {
+  try {
+    // Save audio file to uploads folder
+    const base64Data = audioData.replace(/^data:audio\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    const filename = `audio_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
+    const filePath = path.join(__dirname, '../../uploads', filename);
+    
+    fs.writeFileSync(filePath, buffer);
+
+    const fileUrl = `/uploads/${filename}`;
+    const fileSize = buffer.length;
+
+    // Create document record
+    const document = await prisma.document.create({
+      data: {
+        title: title || 'Audio Recording',
+        description: description || '',
+        fileUrl,
+        fileType: 'audio',
+        fileSize,
+        mimeType: 'audio/wav',
+        visibility: 'private',
+        uploadedBy: userId,
+        category: 'will_audio',
+        estateId: estateId || null,
+        tags: ['audio', 'digital_will']
+      }
+    });
+
+    return document;
+  } catch (error) {
+    console.error('Save audio to documents error:', error);
+    return null;
+  }
+};

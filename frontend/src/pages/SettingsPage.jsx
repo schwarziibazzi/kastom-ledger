@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useRole } from '../contexts/RoleContext';
+import { useRole } from '../contexts/RoleProvider';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 

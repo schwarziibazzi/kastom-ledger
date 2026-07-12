@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './contexts/AuthContext';
-import { RoleProvider } from './contexts/RoleContext';
+import { RoleProvider } from './contexts/RoleProvider';
 
 // Layout
 import RoleBasedLayout from './components/RoleBasedLayout';
@@ -28,7 +28,7 @@ import BeneficiariesPage from './pages/owner/BeneficiariesPage';
 import BeneficiaryDetailPage from './pages/owner/BeneficiaryDetailPage';
 import BeneficiaryEditPage from './pages/owner/BeneficiaryEditPage';
 import DigitalWillPage from './pages/owner/DigitalWillPage';
-import WitnessRequestsPage from './pages/owner/WitnessRequestsPage';
+import OwnerWitnessRequestsPage from './pages/owner/WitnessRequestsPage';
 import WitnessRequestDetailPage from './pages/owner/WitnessRequestDetailPage';
 
 // Pages - Beneficiary
@@ -56,28 +56,6 @@ import Ledger from './pages/Ledger';
 import Documents from './pages/Documents';
 import Profile from './pages/Profile';
 import ClaimInvitation from './pages/ClaimInvitation';
-
-// Role-based redirect component
-function RoleRedirect() {
-  const { user, loading } = useAuth();
-  
-  if (loading) return null;
-  
-  if (!user) return <Navigate to="/login" replace />;
-  
-  const role = user.role || 'OWNER';
-  
-  switch(role) {
-    case 'BENEFICIARY':
-      return <Navigate to="/my-estates" replace />;
-    case 'WITNESS':
-      return <Navigate to="/witness-dashboard" replace />;
-    case 'ADMINISTRATOR':
-      return <Navigate to="/admin" replace />;
-    default:
-      return <Navigate to="/dashboard" replace />;
-  }
-}
 
 function App() {
   const { loading } = useAuth();
@@ -131,9 +109,6 @@ function App() {
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
-            {/* Role-based redirect */}
-            <Route path="/dashboard" element={<RoleRedirect />} />
-            
             <Route element={<RoleBasedLayout />}>
               {/* Common Routes */}
               <Route path="/search" element={<SearchPage />} />
@@ -142,6 +117,8 @@ function App() {
               <Route path="/profile" element={<Profile />} />
 
               {/* Owner Routes */}
+              <Route path="/dashboard" element={<OwnerDashboard />} />
+              <Route path="/owner-dashboard" element={<OwnerDashboard />} />
               <Route path="/estate" element={<EstatePage />} />
               <Route path="/estate/create" element={<EstatePage />} />
               <Route path="/estate/:id" element={<EstateDetailPage />} />
@@ -155,11 +132,10 @@ function App() {
               <Route path="/beneficiaries/:id" element={<BeneficiaryDetailPage />} />
               <Route path="/beneficiaries/edit/:id" element={<BeneficiaryEditPage />} />
               <Route path="/will" element={<DigitalWillPage />} />
-              <Route path="/witness-requests" element={<WitnessRequestsPage />} />
+              <Route path="/witness-requests" element={<OwnerWitnessRequestsPage />} />
               <Route path="/witness-requests/:id" element={<WitnessRequestDetailPage />} />
               <Route path="/ledger" element={<Ledger />} />
               <Route path="/documents" element={<Documents />} />
-              <Route path="/owner-dashboard" element={<OwnerDashboard />} />
 
               {/* Beneficiary Routes */}
               <Route path="/my-estates" element={<BeneficiaryDashboard />} />
