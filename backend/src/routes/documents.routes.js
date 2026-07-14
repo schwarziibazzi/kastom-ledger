@@ -44,13 +44,16 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// ==================== ROUTES ====================
-
+// Document routes
 router.post('/upload', authenticate, upload.single('file'), documentsController.uploadDocument);
 router.get('/', authenticate, documentsController.getDocuments);
-router.get('/category/:category', authenticate, documentsController.getDocumentsByCategory);
+router.get('/recent', authenticate, documentsController.getRecentFiles);
 router.get('/stats', authenticate, documentsController.getStorageStats);
+router.get('/:id', authenticate, documentsController.getDocument);
 router.get('/:id/download', authenticate, documentsController.downloadDocument);
+router.get('/:id/verify', authenticate, documentsController.verifyDocument);
+router.get('/:id/security', authenticate, documentsController.getDocumentSecurityInfo);
+router.put('/:id/move', authenticate, documentsController.moveDocument);
 router.delete('/:id', authenticate, documentsController.deleteDocument);
 
 // Audio routes

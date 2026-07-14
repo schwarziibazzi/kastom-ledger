@@ -22,6 +22,7 @@ exports.login = async (req, res) => {
       result.user.sevispassUid,
       {
         user: result.user.name,
+        role: result.user.role,
         timestamp: new Date().toISOString()
       }
     );
@@ -73,7 +74,8 @@ exports.getProfile = async (req, res) => {
     console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch profile'
+      message: 'Failed to fetch profile',
+      error: error.message
     });
   }
 };

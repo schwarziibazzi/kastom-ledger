@@ -207,15 +207,15 @@ model Beneficiary {
   id                 String            @id @default(uuid())
   estateId           String
   userId             String?
-  name               String            // Store name even if not registered
-  email              String?           // For sending invitations
+  name               String
+  email              String?
   relationship       String
   sharePercentage    Float?
   status             String            @default("pending")
-  invitationToken    String?           // For claiming invitation
+  invitationToken    String?
   invitedAt          DateTime          @default(now())
   acceptedAt         DateTime?
-  claimedAt          DateTime?         // When they claimed with SevisPass
+  claimedAt          DateTime?
   
   // Relations
   estate             Estate            @relation(fields: [estateId], references: [id])
@@ -393,6 +393,11 @@ model Document {
   estateId    String?
   assetId     String?
   tags        String[]
+  checksum    String?     // SHA-256 hash of the file
+  ledgerHash  String?     // Reference to ledger entry
+  digitalSignature String? // Digital signature
+  signatureDate DateTime?  // When signed
+  verifiedAt  DateTime?   // Last verification date
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

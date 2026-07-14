@@ -1,6 +1,8 @@
 const { PrismaClient } = require('@prisma/client');
 const ledgerService = require('../services/ledger.service');
 const notificationService = require('../services/notification.service');
+const fs = require('fs');
+const path = require('path');
 const prisma = new PrismaClient();
 
 exports.createEstate = async (req, res) => {
@@ -170,7 +172,11 @@ exports.getEstate = async (req, res) => {
             }
           }
         },
-        digitalWill: true,
+        digitalWill: {
+          include: {
+            witnesses: true
+          }
+        },
         executor: {
           select: {
             name: true,
@@ -270,8 +276,23 @@ exports.deleteEstate = async (req, res) => {
     const userId = req.user.id;
     const sevispassUid = req.user.sevispassUid;
 
+    // Check if estate exists and belongs to user
     const existing = await prisma.estate.findFirst({
-      where: { id, ownerId: userId }
+      where: { id, ownerId: userId },
+      include: {
+        assets: true,
+        beneficiaries: true,
+        witnesses: true,
+        digitalWill: {
+          include: {
+            witnesses: true
+          }
+        },
+        documents: true,
+        institutionRequests: true,
+        notifications: true,
+        activityLogs: true
+      }
     });
 
     if (!existing) {
@@ -281,39 +302,56 @@ exports.deleteEstate = async (req, res) => {
       });
     }
 
-    // Delete all related records first (cascade delete)
-    // 1. Delete all documents related to this estate
-    await prisma.document.deleteMany({
-      where: { estateId: id }
-    });
+    // Delete physical files (documents)
+    if (existing.documents && existing.documents.length > 0) {
+      for (const doc of existing.documents) {
+        try {
+          const filePath = path.join(__dirname, '../../uploads', path.basename(doc.fileUrl));
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (err) {
+          console.error('Error deleting file:', err);
+        }
+      }
+    }
 
-    // 2. Delete all assets
-    await prisma.asset.deleteMany({
-      where: { estateId: id }
-    });
+    // Delete in correct order to avoid foreign key constraints
 
-    // 3. Delete all beneficiaries
-    await prisma.beneficiary.deleteMany({
-      where: { estateId: id }
-    });
+    // 1. Delete will witnesses (child of digital will)
+    if (existing.digitalWill) {
+      await prisma.willWitness.deleteMany({
+        where: { willId: existing.digitalWill.id }
+      });
+    }
 
-    // 4. Delete all estate witnesses
-    await prisma.estateWitness.deleteMany({
-      where: { estateId: id }
-    });
-
-    // 5. Delete digital will if exists
+    // 2. Delete digital will
     await prisma.digitalWill.deleteMany({
       where: { estateId: id }
     });
 
-    // 6. Delete institution requests
-    await prisma.institutionRequest.deleteMany({
+    // 3. Delete estate witnesses
+    await prisma.estateWitness.deleteMany({
       where: { estateId: id }
     });
 
-    // 7. Delete activity logs
-    await prisma.activityLog.deleteMany({
+    // 4. Delete beneficiaries
+    await prisma.beneficiary.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 5. Delete assets
+    await prisma.asset.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 6. Delete documents
+    await prisma.document.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 7. Delete institution requests
+    await prisma.institutionRequest.deleteMany({
       where: { estateId: id }
     });
 
@@ -322,7 +360,12 @@ exports.deleteEstate = async (req, res) => {
       where: { estateId: id }
     });
 
-    // 9. Finally delete the estate
+    // 9. Delete activity logs
+    await prisma.activityLog.deleteMany({
+      where: { estateId: id }
+    });
+
+    // 10. Finally delete the estate
     await prisma.estate.delete({
       where: { id }
     });

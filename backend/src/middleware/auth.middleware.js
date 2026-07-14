@@ -39,8 +39,6 @@ exports.authenticate = async (req, res, next) => {
 
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    // Check if user has required role
-    // For now, we'll check if user is admin (sevispassUid MOCK-UID-005)
     if (roles.includes('admin') && req.user.sevispassUid !== 'MOCK-UID-005') {
       return res.status(403).json({
         success: false,
