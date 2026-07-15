@@ -49,10 +49,12 @@ export function RoleProvider({ children }) {
         { label: 'Witness Requests', path: '/witness-requests', icon: 'UserCheck' },
         { label: 'Ledger Timeline', path: '/ledger', icon: 'Clock' },
         { label: 'Documents', path: '/documents', icon: 'FolderOpen' },
+        { label: 'Connected Services', path: '/connected-services', icon: 'Link' },
         { label: 'Settings', path: '/settings', icon: 'Settings' }
       ],
       BENEFICIARY: [
         { label: 'Dashboard', path: '/my-estates', icon: 'LayoutDashboard' },
+        { label: 'My Inherited Estates', path: '/my-estates', icon: 'Gift' },
         { label: 'Inherited Assets', path: '/inherited-assets', icon: 'Package' },
         { label: 'Documents', path: '/beneficiary/documents', icon: 'FolderOpen' },
         { label: 'Messages', path: '/messages', icon: 'MessageSquare' }
@@ -68,7 +70,8 @@ export function RoleProvider({ children }) {
         { label: 'Users', path: '/users', icon: 'Users' },
         { label: 'Activity Logs', path: '/logs', icon: 'Activity' },
         { label: 'Audit', path: '/audit', icon: 'Shield' },
-        { label: 'Reports', path: '/reports', icon: 'FileBarChart' }
+        { label: 'Reports', path: '/reports', icon: 'FileBarChart' },
+        { label: 'Government Integrations', path: '/integrations', icon: 'Database' }
       ]
     };
     return menus[role] || menus.OWNER;
@@ -84,7 +87,8 @@ export function RoleProvider({ children }) {
         canManageBeneficiaries: true,
         canManageWitnesses: true,
         canViewTimeline: true,
-        canEditWill: true
+        canEditWill: true,
+        canViewConnectedServices: true
       },
       BENEFICIARY: {
         canViewEstates: true,
@@ -105,7 +109,8 @@ export function RoleProvider({ children }) {
         canManageUsers: true,
         canViewAuditLogs: true,
         canViewSystemStats: true,
-        canVerifyRequests: true
+        canVerifyRequests: true,
+        canManageIntegrations: true
       }
     };
     return permissionsMap[role] || permissionsMap.OWNER;

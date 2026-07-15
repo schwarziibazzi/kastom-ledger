@@ -10,7 +10,6 @@ exports.createBeneficiary = async (req, res) => {
     const ownerId = req.user.id;
     const sevispassUid = req.user.sevispassUid;
 
-    // Check if user owns the estate
     const estate = await prisma.estate.findFirst({
       where: { id: estateId, ownerId }
     });
@@ -40,13 +39,14 @@ exports.createBeneficiary = async (req, res) => {
     let beneficiaryUserId = userId;
     let beneficiaryStatus = 'pending';
     let invitationToken = null;
+    let foundUser = null;
 
     // If userId is provided, check if user exists
     if (userId) {
-      const existingUser = await prisma.user.findUnique({
+      foundUser = await prisma.user.findUnique({
         where: { id: userId }
       });
-      if (existingUser) {
+      if (foundUser) {
         beneficiaryUserId = userId;
         // Check if already a beneficiary
         const existing = await prisma.beneficiary.findFirst({
@@ -64,6 +64,19 @@ exports.createBeneficiary = async (req, res) => {
         beneficiaryStatus = 'accepted'; // Auto-accept if already in system
       } else {
         beneficiaryUserId = null;
+      }
+    }
+
+    // If no userId, try to find user by name
+    if (!beneficiaryUserId && name) {
+      foundUser = await prisma.user.findFirst({
+        where: {
+          name: name.trim()
+        }
+      });
+      if (foundUser) {
+        beneficiaryUserId = foundUser.id;
+        beneficiaryStatus = 'accepted';
       }
     }
 
@@ -107,10 +120,18 @@ exports.createBeneficiary = async (req, res) => {
       estateId
     );
 
-    // If beneficiary doesn't have an account, send invitation
-    if (!beneficiaryUserId && email) {
-      // In production: Send email with invitation link
-      // For demo: Just notify owner
+    // If beneficiary has an account, notify them directly
+    if (beneficiaryUserId) {
+      await notificationService.createNotification(
+        beneficiaryUserId,
+        'BENEFICIARY_ACCEPTED',
+        'You have been nominated as a beneficiary',
+        `${req.user.name} has nominated you as a beneficiary for "${estate.title}".`,
+        `/my-estates`,
+        estateId
+      );
+    } else if (email) {
+      // If no account but email provided, send invitation notification to owner
       await notificationService.createNotification(
         ownerId,
         'BENEFICIARY_ACCEPTED',
@@ -125,7 +146,8 @@ exports.createBeneficiary = async (req, res) => {
       success: true,
       message: beneficiaryUserId ? 'Beneficiary added successfully' : 'Beneficiary added. They will need to create an account to claim their inheritance.',
       beneficiary,
-      needsInvitation: !beneficiaryUserId
+      needsInvitation: !beneficiaryUserId,
+      foundUser: foundUser || null
     });
   } catch (error) {
     console.error('Create beneficiary error:', error);
@@ -351,7 +373,6 @@ exports.deleteBeneficiary = async (req, res) => {
   }
 };
 
-// Claim beneficiary invitation
 exports.claimInvitation = async (req, res) => {
   try {
     const { token } = req.params;
@@ -361,7 +382,16 @@ exports.claimInvitation = async (req, res) => {
     const beneficiary = await prisma.beneficiary.findFirst({
       where: {
         invitationToken: token,
-        userId: null // Not yet claimed
+        userId: null
+      },
+      include: {
+        estate: {
+          select: {
+            id: true,
+            title: true,
+            ownerId: true
+          }
+        }
       }
     });
 
@@ -372,7 +402,6 @@ exports.claimInvitation = async (req, res) => {
       });
     }
 
-    // Check if this user is already a beneficiary for this estate
     const existing = await prisma.beneficiary.findFirst({
       where: {
         estateId: beneficiary.estateId,
@@ -394,6 +423,15 @@ exports.claimInvitation = async (req, res) => {
         status: 'accepted',
         claimedAt: new Date(),
         invitationToken: null
+      },
+      include: {
+        estate: {
+          select: {
+            id: true,
+            title: true,
+            ownerId: true
+          }
+        }
       }
     });
 
@@ -430,7 +468,6 @@ exports.claimInvitation = async (req, res) => {
   }
 };
 
-// Resend invitation
 exports.resendInvitation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -466,15 +503,12 @@ exports.resendInvitation = async (req, res) => {
       });
     }
 
-    // Generate new token
     const newToken = crypto.randomBytes(32).toString('hex');
     await prisma.beneficiary.update({
       where: { id },
       data: { invitationToken: newToken }
     });
 
-    // In production: Send email with new invitation link
-    // For demo: Just notify
     await notificationService.createNotification(
       userId,
       'BENEFICIARY_ACCEPTED',
@@ -498,7 +532,6 @@ exports.resendInvitation = async (req, res) => {
   }
 };
 
-// Beneficiary-specific endpoints
 exports.getBeneficiaryEstates = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -512,20 +545,24 @@ exports.getBeneficiaryEstates = async (req, res) => {
       include: {
         owner: {
           select: {
+            id: true,
             name: true,
-            sevispassUid: true
+            sevispassUid: true,
+            profilePhoto: true
           }
         },
         assets: {
           where: { status: 'active' }
         },
         beneficiaries: {
-          include: {
-            user: {
-              select: {
-                name: true
-              }
-            }
+          where: { userId },
+          select: {
+            id: true,
+            relationship: true,
+            sharePercentage: true,
+            status: true,
+            invitedAt: true,
+            acceptedAt: true
           }
         },
         documents: {
@@ -566,7 +603,12 @@ exports.getBeneficiaryDocuments = async (req, res) => {
         estate: {
           select: {
             id: true,
-            title: true
+            title: true,
+            owner: {
+              select: {
+                name: true
+              }
+            }
           }
         }
       },

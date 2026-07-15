@@ -95,10 +95,10 @@ function NotificationsPage() {
       'DIGITAL_WILL_CREATED': FileText,
       'DIGITAL_WILL_UPDATED': FileText,
       'DIGITAL_WILL_SUBMITTED': FileText,
-      'DIGITAL_WILL_DELETED': FileText
+      'DIGITAL_WILL_DELETED': FileText,
+      'DIGITAL_WILL_PDF_GENERATED': FileText
     };
-    const Icon = icons[type] || Bell;
-    return Icon;
+    return icons[type] || Bell;
   };
 
   const getNotificationColor = (type) => {
@@ -120,7 +120,8 @@ function NotificationsPage() {
       'VERIFICATION_COMPLETE': 'text-kastom-success bg-green-50',
       'ADMIN_VERIFIED': 'text-red-600 bg-red-50',
       'DIGITAL_WILL_CREATED': 'text-purple-600 bg-purple-50',
-      'DIGITAL_WILL_SUBMITTED': 'text-green-600 bg-green-50'
+      'DIGITAL_WILL_SUBMITTED': 'text-green-600 bg-green-50',
+      'DIGITAL_WILL_PDF_GENERATED': 'text-green-600 bg-green-50'
     };
     return colors[type] || 'text-kastom-muted bg-kastom-cream';
   };
@@ -176,7 +177,6 @@ function NotificationsPage() {
         )}
       </div>
 
-      {/* Filters */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setFilter('all')}
@@ -201,7 +201,6 @@ function NotificationsPage() {
         </button>
       </div>
 
-      {/* Notifications List */}
       <div className="space-y-3">
         {filteredNotifications.length === 0 ? (
           <div className="text-center py-16">
@@ -219,17 +218,22 @@ function NotificationsPage() {
             const colorClass = getNotificationColor(notification.type);
             
             // Generate correct link based on notification type
-            let linkPath = notification.link || '#';
-            if (notification.type === 'DIGITAL_WILL_CREATED' || notification.type === 'DIGITAL_WILL_SUBMITTED') {
+            let linkPath = null;
+            if (notification.type === 'DIGITAL_WILL_CREATED' || 
+                notification.type === 'DIGITAL_WILL_UPDATED' || 
+                notification.type === 'DIGITAL_WILL_SUBMITTED' || 
+                notification.type === 'DIGITAL_WILL_PDF_GENERATED') {
               linkPath = `/will/${notification.estateId}`;
             } else if (notification.type === 'DOCUMENT_UPLOADED') {
               linkPath = '/documents';
             } else if (notification.type === 'BENEFICIARY_ADDED' || notification.type === 'BENEFICIARY_ACCEPTED') {
-              linkPath = `/beneficiaries`;
-            } else if (notification.type === 'ASSET_ADDED') {
+              linkPath = '/beneficiaries';
+            } else if (notification.type === 'ASSET_ADDED' || notification.type === 'ASSET_UPDATED') {
               linkPath = '/assets';
             } else if (notification.type === 'ESTATE_UPDATED' || notification.type === 'ESTATE_CREATED') {
               linkPath = `/estate/${notification.estateId}`;
+            } else if (notification.type === 'WITNESS_REQUESTED' || notification.type === 'WITNESS_APPROVED') {
+              linkPath = '/witness-requests';
             }
 
             return (
@@ -272,7 +276,7 @@ function NotificationsPage() {
                         </button>
                       )}
                     </div>
-                    {linkPath && linkPath !== '#' && (
+                    {linkPath && (
                       <Link 
                         to={linkPath}
                         className="inline-block mt-2 text-sm text-kastom-green hover:underline font-medium"

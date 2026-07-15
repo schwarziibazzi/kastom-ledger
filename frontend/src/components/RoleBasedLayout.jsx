@@ -28,7 +28,9 @@ import {
   Gift,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Database,
+  Link as LinkIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -50,7 +52,9 @@ const iconMap = {
   'Gift': Gift,
   'CheckCircle': CheckCircle,
   'XCircle': XCircle,
-  'AlertCircle': AlertCircle
+  'AlertCircle': AlertCircle,
+  'Database': Database,
+  'Link': LinkIcon
 };
 
 function RoleBasedLayout() {

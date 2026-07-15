@@ -452,14 +452,14 @@ exports.submitWill = async (req, res) => {
       }
     });
 
-    // Generate PDF with better error handling
+    // Generate PDF
     let pdfResult = null;
     let pdfError = null;
     try {
       pdfResult = await pdfService.generateDigitalWill(id, userId);
-    } catch (pdfError) {
-      console.error('PDF Generation Error:', pdfError);
-      pdfError = pdfError.message;
+    } catch (error) {
+      console.error('PDF Generation Error:', error);
+      pdfError = error.message;
     }
 
     await ledgerService.createEntry(
@@ -609,3 +609,4 @@ exports.downloadWillPDF = async (req, res) => {
     });
   }
 };
+

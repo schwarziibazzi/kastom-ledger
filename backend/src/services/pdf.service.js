@@ -12,33 +12,48 @@ class PDFService {
   }
 
   ensureDirectoryExists() {
-    if (!fs.existsSync(this.outputDir)) {
-      fs.mkdirSync(this.outputDir, { recursive: true });
+    try {
+      if (!fs.existsSync(this.outputDir)) {
+        fs.mkdirSync(this.outputDir, { recursive: true });
+        console.log('📁 PDF directory created at:', this.outputDir);
+      }
+    } catch (error) {
+      console.error('Failed to create PDF directory:', error);
     }
   }
 
-  // Generate SHA-256 hash of file
   generateFileHash(filePath) {
-    const fileBuffer = fs.readFileSync(filePath);
-    const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-    return hash;
+    try {
+      const fileBuffer = fs.readFileSync(filePath);
+      const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      return hash;
+    } catch (error) {
+      console.error('Hash generation error:', error);
+      return null;
+    }
   }
 
-  // Generate a verification code from hash
   generateVerificationCode(hash) {
+    if (!hash) return 'N/A';
     return hash.substring(0, 16).toUpperCase();
   }
 
-  // Create digital signature
   generateDigitalSignature(data, secretKey) {
-    return crypto
-      .createHmac('sha256', secretKey || process.env.JWT_SECRET || 'kastom-ledger-secret')
-      .update(data)
-      .digest('hex');
+    try {
+      return crypto
+        .createHmac('sha256', secretKey || process.env.JWT_SECRET || 'kastom-ledger-secret')
+        .update(data)
+        .digest('hex');
+    } catch (error) {
+      console.error('Signature generation error:', error);
+      return null;
+    }
   }
 
   async generateDigitalWill(willId, userId) {
     try {
+      this.ensureDirectoryExists();
+
       const will = await prisma.digitalWill.findUnique({
         where: { id: willId },
         include: {
@@ -46,6 +61,7 @@ class PDFService {
             include: {
               owner: {
                 select: {
+                  id: true,
                   name: true,
                   sevispassUid: true,
                   province: true,
@@ -93,7 +109,6 @@ class PDFService {
       });
 
       if (existingPdf && existingPdf.checksum) {
-        // Verify existing PDF integrity
         const filePath = path.join(this.outputDir, path.basename(existingPdf.fileUrl));
         if (fs.existsSync(filePath)) {
           const currentHash = this.generateFileHash(filePath);
@@ -110,28 +125,35 @@ class PDFService {
         }
       }
 
-      // Create ledger entry first
+      // Create ledger entry - WITH TEMPORARY HASH
+      const tempHash = crypto.createHash('sha256').update(Date.now().toString()).digest('hex');
+
       const ledgerEntry = await prisma.ledgerEntry.create({
         data: {
           actionType: 'DIGITAL_WILL_PDF_GENERATED',
-          actorUid: will.estate.owner.sevispassUid,
           timestamp: new Date(),
           previousHash: null,
-          currentHash: null,
-          metadata: { 
-            willId, 
+          currentHash: tempHash,
+          metadata: {
+            willId,
             estateId: will.estateId,
             userName: will.estate.owner.name,
             timestamp: new Date().toISOString()
+          },
+          user: {
+            connect: {
+              sevispassUid: will.estate.owner.sevispassUid
+            }
           }
         }
       });
 
-      // Generate PDF
+      // Generate PDF filename
       const safeName = will.estate.owner.name.replace(/[^a-zA-Z0-9]/g, '_');
       const filename = `will_${safeName}_${Date.now()}.pdf`;
       const filePath = path.join(this.outputDir, filename);
 
+      // Create PDF
       const doc = new PDFDocument({
         size: 'A4',
         margins: { top: 50, bottom: 50, left: 50, right: 50 }
@@ -166,9 +188,9 @@ class PDFService {
         .stroke()
         .moveDown(1);
 
-      // Security Seal Box
+      // Security Seal
       doc
-        .rect(50, doc.y, 490, 60)
+        .rect(50, doc.y, 490, 70)
         .strokeColor('#14532D')
         .lineWidth(2)
         .stroke();
@@ -186,7 +208,7 @@ class PDFService {
         .text(`Verification Code: ${this.generateVerificationCode(ledgerEntry.id)}`, { x: 70, y: sealY + 32 })
         .text(`Ledger Entry: ${ledgerEntry.id}`, { x: 70, y: sealY + 46 });
 
-      doc.moveDown(8);
+      doc.moveDown(9);
 
       // Document ID
       doc
@@ -417,7 +439,7 @@ class PDFService {
         doc.moveDown(1);
       }
 
-      // ============ SECURITY SECTION ============
+      // Security Section
       doc
         .addPage()
         .fontSize(16)
@@ -426,7 +448,6 @@ class PDFService {
         .text('Document Security & Verification', { align: 'center' })
         .moveDown(1);
 
-      // Digital Signature Box
       doc
         .rect(50, doc.y, 490, 100)
         .strokeColor('#14532D')
@@ -538,6 +559,7 @@ class PDFService {
 
       doc.end();
 
+      // Wait for PDF to be written
       await new Promise((resolve, reject) => {
         stream.on('finish', resolve);
         stream.on('error', reject);
@@ -551,15 +573,15 @@ class PDFService {
       const signatureData = `${will.id}:${fileHash}:${ledgerEntry.id}:${new Date().toISOString()}`;
       const digitalSignature = this.generateDigitalSignature(signatureData);
 
-      // Update ledger entry with hash
+      // Update ledger entry with actual file hash
       const updatedLedger = await prisma.ledgerEntry.update({
         where: { id: ledgerEntry.id },
         data: {
           currentHash: fileHash,
           previousHash: ledgerEntry.previousHash,
-          metadata: { 
-            willId, 
-            estateId: will.estateId, 
+          metadata: {
+            willId,
+            estateId: will.estateId,
             fileHash,
             digitalSignature,
             verificationCode: this.generateVerificationCode(ledgerEntry.id),
@@ -569,7 +591,7 @@ class PDFService {
         }
       });
 
-      // Save document with all security fields
+      // Save document record
       const document = await prisma.document.create({
         data: {
           title: `Digital Will - ${will.estate.title}`,
@@ -608,7 +630,6 @@ class PDFService {
     }
   }
 
-  // Verify PDF integrity
   async verifyPDF(documentId) {
     try {
       const document = await prisma.document.findUnique({
@@ -631,7 +652,6 @@ class PDFService {
       const currentHash = this.generateFileHash(filePath);
       const isValid = currentHash === document.checksum;
 
-      // Update verification timestamp
       if (isValid) {
         await prisma.document.update({
           where: { id: documentId },
@@ -654,7 +674,6 @@ class PDFService {
     }
   }
 
-  // Get document security info
   async getSecurityInfo(documentId) {
     try {
       const document = await prisma.document.findUnique({

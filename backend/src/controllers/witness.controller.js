@@ -3,7 +3,6 @@ const ledgerService = require('../services/ledger.service');
 const notificationService = require('../services/notification.service');
 const prisma = new PrismaClient();
 
-// Request a witness (Owner)
 exports.requestWitness = async (req, res) => {
   try {
     const { successorId, witnessUid, actionVerified } = req.body;
@@ -82,7 +81,6 @@ exports.requestWitness = async (req, res) => {
   }
 };
 
-// Get all witness requests (Witness)
 exports.getWitnessRequests = async (req, res) => {
   try {
     const witnessUid = req.user.sevispassUid;
@@ -106,7 +104,6 @@ exports.getWitnessRequests = async (req, res) => {
       orderBy: { timestamp: 'desc' }
     });
 
-    // Also get estate witness requests
     const estateWitnessRequests = await prisma.estateWitness.findMany({
       where: { 
         witnessId: req.user.id,
@@ -140,13 +137,11 @@ exports.getWitnessRequests = async (req, res) => {
   }
 };
 
-// Get single witness request (Witness)
 exports.getWitnessRequest = async (req, res) => {
   try {
     const { id } = req.params;
     const witnessUid = req.user.sevispassUid;
 
-    // Try legacy witness first
     let request = await prisma.witness.findFirst({
       where: { 
         id, 
@@ -168,7 +163,6 @@ exports.getWitnessRequest = async (req, res) => {
       }
     });
 
-    // If not found, try estate witness
     if (!request) {
       request = await prisma.estateWitness.findFirst({
         where: { 
@@ -220,7 +214,6 @@ exports.getWitnessRequest = async (req, res) => {
   }
 };
 
-// Approve witness request (Witness)
 exports.approveWitness = async (req, res) => {
   try {
     const { id } = req.params;
@@ -228,7 +221,6 @@ exports.approveWitness = async (req, res) => {
     const witnessUid = req.user.sevispassUid;
     const witnessId = req.user.id;
 
-    // Try legacy witness first
     let request = await prisma.witness.findFirst({
       where: { id, witnessUid }
     });
@@ -242,7 +234,6 @@ exports.approveWitness = async (req, res) => {
         }
       });
 
-      // Update successor status
       await prisma.successor.update({
         where: { id: request.successorId },
         data: { status: 'verified' }
@@ -273,7 +264,6 @@ exports.approveWitness = async (req, res) => {
       });
     }
 
-    // Try estate witness
     let estateRequest = await prisma.estateWitness.findFirst({
       where: { id, witnessId }
     });
@@ -322,6 +312,72 @@ exports.approveWitness = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to approve witness'
+    });
+  }
+};
+
+exports.rejectWitness = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comments } = req.body;
+    const witnessUid = req.user.sevispassUid;
+    const witnessId = req.user.id;
+
+    let request = await prisma.witness.findFirst({
+      where: { id, witnessUid }
+    });
+
+    if (request) {
+      const updated = await prisma.witness.update({
+        where: { id },
+        data: {
+          digitalSignature: `REJECTED_${Date.now()}`,
+          comments: comments || null
+        }
+      });
+
+      await prisma.successor.update({
+        where: { id: request.successorId },
+        data: { status: 'rejected' }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Witness request rejected',
+        witness: updated
+      });
+    }
+
+    let estateRequest = await prisma.estateWitness.findFirst({
+      where: { id, witnessId }
+    });
+
+    if (estateRequest) {
+      const updated = await prisma.estateWitness.update({
+        where: { id },
+        data: {
+          status: 'rejected',
+          comments: comments || null,
+          verifiedAt: new Date()
+        }
+      });
+
+      return res.json({
+        success: true,
+        message: 'Estate witness request rejected',
+        witness: updated
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      message: 'Witness request not found'
+    });
+  } catch (error) {
+    console.error('Reject witness error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject witness'
     });
   }
 };
@@ -400,73 +456,6 @@ exports.getRejected = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch rejected requests'
-    });
-  }
-};
-
-// Reject witness request (Witness)
-exports.rejectWitness = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { comments } = req.body;
-    const witnessUid = req.user.sevispassUid;
-    const witnessId = req.user.id;
-
-    let request = await prisma.witness.findFirst({
-      where: { id, witnessUid }
-    });
-
-    if (request) {
-      const updated = await prisma.witness.update({
-        where: { id },
-        data: {
-          digitalSignature: `REJECTED_${Date.now()}`,
-          comments: comments || null
-        }
-      });
-
-      await prisma.successor.update({
-        where: { id: request.successorId },
-        data: { status: 'rejected' }
-      });
-
-      return res.json({
-        success: true,
-        message: 'Witness request rejected',
-        witness: updated
-      });
-    }
-
-    let estateRequest = await prisma.estateWitness.findFirst({
-      where: { id, witnessId }
-    });
-
-    if (estateRequest) {
-      const updated = await prisma.estateWitness.update({
-        where: { id },
-        data: {
-          status: 'rejected',
-          comments: comments || null,
-          verifiedAt: new Date()
-        }
-      });
-
-      return res.json({
-        success: true,
-        message: 'Estate witness request rejected',
-        witness: updated
-      });
-    }
-
-    return res.status(404).json({
-      success: false,
-      message: 'Witness request not found'
-    });
-  } catch (error) {
-    console.error('Reject witness error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to reject witness'
     });
   }
 };

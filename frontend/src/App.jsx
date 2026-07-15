@@ -30,6 +30,7 @@ import BeneficiaryEditPage from './pages/owner/BeneficiaryEditPage';
 import DigitalWillPage from './pages/owner/DigitalWillPage';
 import OwnerWitnessRequestsPage from './pages/owner/WitnessRequestsPage';
 import WitnessRequestDetailPage from './pages/owner/WitnessRequestDetailPage';
+import ConnectedServices from './pages/owner/ConnectedServices';
 
 // Pages - Beneficiary
 import BeneficiaryDashboard from './pages/beneficiary/BeneficiaryDashboard';
@@ -50,6 +51,7 @@ import UsersPage from './pages/admin/UsersPage';
 import ActivityLogsPage from './pages/admin/ActivityLogsPage';
 import AuditPage from './pages/admin/AuditPage';
 import ReportsPage from './pages/admin/ReportsPage';
+import GovernmentIntegrations from './pages/admin/GovernmentIntegrations';
 
 // Legacy Pages
 import Ledger from './pages/Ledger';
@@ -136,6 +138,7 @@ function App() {
               <Route path="/witness-requests/:id" element={<WitnessRequestDetailPage />} />
               <Route path="/ledger" element={<Ledger />} />
               <Route path="/documents" element={<Documents />} />
+              <Route path="/connected-services" element={<ConnectedServices />} />
 
               {/* Beneficiary Routes */}
               <Route path="/my-estates" element={<BeneficiaryDashboard />} />
@@ -156,6 +159,7 @@ function App() {
               <Route path="/logs" element={<ActivityLogsPage />} />
               <Route path="/audit" element={<AuditPage />} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/integrations" element={<GovernmentIntegrations />} />
             </Route>
           </Route>
 

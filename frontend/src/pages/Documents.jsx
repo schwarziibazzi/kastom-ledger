@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
@@ -17,49 +18,39 @@ import {
   Eye,
   X,
   Loader2,
-  Grid,
-  List as ListIcon,
-  Clock,
-  Image,
-  Music,
-  FileArchive,
-  Database
+  FileCheck,
+  Shield,
+  CheckCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function Documents() {
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const [view, setView] = useState('grid');
   const [documents, setDocuments] = useState([]);
   const [audioFiles, setAudioFiles] = useState([]);
-  const [allFiles, setAllFiles] = useState([]);
-  const [categories, setCategories] = useState({});
-  const [stats, setStats] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [showVerification, setShowVerification] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchDocuments();
   }, []);
 
-  const fetchData = async () => {
+  const fetchDocuments = async () => {
     try {
-      const [docsRes, statsRes] = await Promise.all([
-        api.get('/documents'),
-        api.get('/documents/stats')
-      ]);
-
-      const data = docsRes.data;
-      setDocuments(data.documents || []);
-      setAudioFiles(data.audioFiles || []);
-      setAllFiles(data.allFiles || []);
-      setCategories(data.categories || {});
-      setStats(data.stats || {});
+      const response = await api.get('/documents');
+      setDocuments(response.data.documents || []);
+      
+      //const audioRes = await api.get('/documents/audio');
+      //setAudioFiles(audioRes.data.audioFiles || []);
     } catch (error) {
-      console.error('Fetch data error:', error);
+      console.error('Fetch documents error:', error);
       toast.error('Failed to load documents');
     } finally {
       setLoading(false);
@@ -73,21 +64,20 @@ function Documents() {
       formData.append('file', acceptedFiles[0]);
       formData.append('title', acceptedFiles[0].name);
       formData.append('description', 'Uploaded document');
-      formData.append('category', selectedCategory === 'all' ? 'general' : selectedCategory);
 
       const response = await api.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       toast.success('Document uploaded successfully');
-      fetchData();
+      fetchDocuments();
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload document');
     } finally {
       setUploading(false);
     }
-  }, [selectedCategory]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -102,45 +92,76 @@ function Documents() {
     maxSize: 10485760
   });
 
-  const handleDelete = async (id, type) => {
-    if (!window.confirm('Delete this file?')) return;
-    try {
-      if (type === 'audio') {
-        await api.delete(`/documents/audio/${id}`);
-      } else {
-        await api.delete(`/documents/${id}`);
-      }
-      toast.success('Deleted successfully');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to delete');
+  const handleView = (doc) => {
+    if (doc.fileUrl) {
+      window.open(doc.fileUrl, '_blank');
+    } else {
+      setSelectedDoc(doc);
+      setShowPreview(true);
     }
   };
 
-  const handleDownload = async (file) => {
+  const handleVerify = async (doc) => {
+    setVerifying(true);
+    setShowVerification(true);
     try {
-      const response = await api.get(`/documents/${file.id}/download`, {
+      const response = await api.get(`/documents/${doc.id}/verify`);
+      setVerificationResult(response.data.verification);
+    } catch (error) {
+      console.error('Verification error:', error);
+      toast.error('Failed to verify document');
+      setVerificationResult({ isValid: false, message: 'Verification failed' });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleDownload = async (doc) => {
+    try {
+      // If it's a URL, open in new tab
+      if (doc.fileUrl) {
+        window.open(doc.fileUrl, '_blank');
+        return;
+      }
+      
+      const response = await api.get(`/documents/${doc.id}/download`, {
         responseType: 'blob'
       });
+      
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', file.title || 'document');
+      link.setAttribute('download', doc.title || 'document');
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      toast.success('Downloading...');
     } catch (error) {
       console.error('Download error:', error);
-      toast.error('Failed to download');
+      toast.error('Failed to download document');
+    }
+  };
+
+  const handleDelete = async (doc) => {
+    if (!window.confirm(`Are you sure you want to delete "${doc.title}"?`)) return;
+    
+    try {
+      await api.delete(`/documents/${doc.id}`);
+      toast.success('Document deleted successfully');
+      fetchDocuments();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete document');
     }
   };
 
   const getFileIcon = (type) => {
     const icons = {
       'pdf': FileText,
-      'image': Image,
-      'audio': Music,
+      'image': FileImage,
+      'audio': FileAudio,
       'video': File,
       'document': FileText,
       'file': File
@@ -161,37 +182,36 @@ function Documents() {
   };
 
   const formatSize = (bytes) => {
+    if (!bytes) return '0 KB';
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  const categoryLabels = {
-    'legacy': 'Legacy Documents',
-    'estate': 'Estate Documents',
-    'asset': 'Asset Documents',
-    'will_audio': 'Will Audio Recordings',
-    'profile': 'Profile Photos',
-    'general': 'General Documents',
-    'all': 'All Documents'
+  const isImage = (doc) => {
+    return doc.fileType === 'image' || 
+           doc.fileUrl?.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i);
   };
 
-  const categoryIcons = {
-    'legacy': FileArchive,
-    'estate': Database,
-    'asset': Grid,
-    'will_audio': Music,
-    'profile': Image,
-    'general': FolderOpen,
-    'all': FolderOpen
-  };
+ const getFileUrl = (doc) => {
+  if (doc.fileUrl) {
+    if (doc.fileUrl.startsWith('/')) {
+      return `http://localhost:5000${doc.fileUrl}`;
+    }
+    return doc.fileUrl;
+  }
+  return null;
+};
 
-  const filteredFiles = allFiles.filter(file => {
-    const matchesSearch = file.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          file.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || file.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const allFiles = [
+    ...documents.map(d => ({ ...d, type: 'document' })),
+    ...audioFiles.map(a => ({ ...a, type: 'audio' }))
+  ];
+
+  const filteredDocs = allFiles.filter(doc =>
+    doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    doc.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -203,12 +223,11 @@ function Documents() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-kastom-dark tracking-tight">My Documents</h1>
+          <h1 className="text-3xl font-bold text-kastom-dark tracking-tight">Documents</h1>
           <p className="text-kastom-muted mt-1">
-            {stats.totalFiles || 0} files • {stats.totalSizeMB || '0'} MB used
+            {allFiles.length} files • Manage your documents
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -227,127 +246,135 @@ function Documents() {
         </div>
       </div>
 
-      {/* Upload Zone */}
       <div
         {...getRootProps()}
-        className={`card border-2 border-dashed transition-all duration-200 cursor-pointer mb-6
+        className={`card border-2 border-dashed transition-all duration-200 cursor-pointer mb-8
           ${isDragActive ? 'border-kastom-green bg-kastom-green-bg' : 'border-kastom-border hover:border-kastom-green/30'}`}
       >
         <input {...getInputProps()} />
-        <div className="text-center py-8">
+        <div className="text-center py-12">
           {uploading ? (
             <div className="flex flex-col items-center">
-              <Loader2 className="w-10 h-10 text-kastom-green animate-spin" />
-              <p className="mt-2 text-kastom-muted font-medium">Uploading...</p>
+              <Loader2 className="w-12 h-12 text-kastom-green animate-spin" />
+              <p className="mt-4 text-kastom-muted font-medium">Uploading...</p>
             </div>
           ) : (
             <>
-              <Upload className="w-10 h-10 text-kastom-green mx-auto mb-2" />
-              <p className="text-sm font-medium text-kastom-dark">
-                {isDragActive ? 'Drop your files here' : 'Drag & drop or click to upload'}
+              <div className="w-16 h-16 rounded-2xl bg-kastom-green-bg flex items-center justify-center mx-auto mb-4">
+                <Upload className="w-8 h-8 text-kastom-green" />
+              </div>
+              <p className="text-lg font-medium text-kastom-dark">
+                {isDragActive ? 'Drop your files here' : 'Upload Documents'}
               </p>
-              <p className="text-xs text-kastom-muted/60 mt-1">PDF, Images, Audio • Max 10MB</p>
+              <p className="text-sm text-kastom-muted mt-1">
+                Drag & drop or click to browse • PDF, Images, Audio
+              </p>
+              <p className="text-xs text-kastom-muted/60 mt-2">Max file size: 10MB</p>
             </>
           )}
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-kastom-muted" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-kastom-muted" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search files..."
-          className="w-full pl-11 pr-4 py-2.5 bg-white border border-kastom-border rounded-xl focus:outline-none focus:ring-2 focus:ring-kastom-green focus:border-transparent text-sm"
+          placeholder="Search documents..."
+          className="w-full pl-12 pr-4 py-3 bg-white border border-kastom-border rounded-xl focus:outline-none focus:ring-2 focus:ring-kastom-green focus:border-transparent"
         />
       </div>
 
-      {/* Categories */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {['all', ...Object.keys(categories)].map((cat) => {
-          const Icon = categoryIcons[cat] || FolderOpen;
-          const label = categoryLabels[cat] || cat;
-          const count = cat === 'all' ? stats.totalFiles || 0 : categories[cat] || 0;
-          return (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2
-                ${selectedCategory === cat 
-                  ? 'bg-kastom-green text-white shadow-md' 
-                  : 'bg-white text-kastom-muted hover:bg-kastom-cream border border-kastom-border/50'}`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-              <span className={`text-xs ${selectedCategory === cat ? 'text-white/80' : 'text-kastom-muted/60'}`}>
-                ({count})
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Files */}
-      {filteredFiles.length === 0 ? (
+      {filteredDocs.length === 0 ? (
         <div className="text-center py-16">
-          <FolderOpen className="w-16 h-16 text-kastom-muted mx-auto mb-4" />
-          <p className="text-kastom-muted font-medium">No files found</p>
-          <p className="text-sm text-kastom-muted/60 mt-1">Upload your first document</p>
+          <div className="w-16 h-16 rounded-2xl bg-kastom-cream flex items-center justify-center mx-auto mb-4">
+            <FolderOpen className="w-8 h-8 text-kastom-muted" />
+          </div>
+          <p className="text-kastom-muted font-medium">No documents found</p>
+          <p className="text-sm text-kastom-muted/60 mt-1">
+            {searchQuery ? 'Try a different search term' : 'Upload your first document'}
+          </p>
         </div>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredFiles.map((file) => {
-            const Icon = getFileIcon(file.fileType);
-            const color = getFileColor(file.fileType);
-            const isImage = file.fileType === 'image';
-
+          {filteredDocs.map((doc) => {
+            const Icon = getFileIcon(doc.fileType);
+            const color = getFileColor(doc.fileType);
+            const isImageFile = isImage(doc);
+            const fileUrl = getFileUrl(doc);
+            const isWill = doc.tags?.includes('digital_will');
+            
             return (
               <motion.div
-                key={file.id}
+                key={doc.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="card card-hover group overflow-hidden"
+                className="card card-hover overflow-hidden"
               >
                 <div className="flex flex-col items-center text-center">
-                  {isImage ? (
-                    <div className="w-full h-28 rounded-lg overflow-hidden bg-kastom-cream mb-2">
+                  {isImageFile && fileUrl ? (
+                    <div className="w-full h-32 rounded-lg overflow-hidden bg-kastom-cream mb-2">
                       <img 
-                        src={file.fileUrl} 
-                        alt={file.title} 
+                        src={fileUrl} 
+                        alt={doc.title} 
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        onError={(e) => { e.target.style.display = 'none'; }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
                       />
                     </div>
+                  ) : doc.fileType === 'pdf' || doc.fileUrl?.endsWith('.pdf') ? (
+                    <div className="w-full h-32 rounded-lg overflow-hidden bg-red-50 flex items-center justify-center mb-2">
+                      <FileText className="w-12 h-12 text-red-500" />
+                    </div>
                   ) : (
-                    <div className={`w-14 h-14 rounded-2xl bg-kastom-cream flex items-center justify-center ${color}`}>
-                      <Icon className="w-7 h-7" />
+                    <div className={`w-16 h-16 rounded-2xl bg-kastom-cream flex items-center justify-center ${color}`}>
+                      <Icon className="w-8 h-8" />
                     </div>
                   )}
-                  <p className="font-medium text-kastom-dark mt-2 text-sm line-clamp-2">{file.title}</p>
-                  <p className="text-xs text-kastom-muted">{formatSize(file.fileSize || 0)}</p>
-                  {file.category && (
-                    <span className="text-xs text-kastom-muted/60 mt-1">{categoryLabels[file.category] || file.category}</span>
+                  
+                  {isWill && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full mb-1">
+                      <FileCheck className="w-3 h-3" />
+                      Digital Will
+                    </span>
                   )}
-                  <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  
+                  <p className="font-medium text-kastom-dark mt-1 text-sm line-clamp-2">{doc.title}</p>
+                  <p className="text-xs text-kastom-muted mt-1">
+                    {formatSize(doc.fileSize)}
+                  </p>
+                  {doc.estate && (
+                    <span className="text-xs text-kastom-muted/60 mt-1">{doc.estate.title}</span>
+                  )}
+                  <div className="flex items-center gap-1 mt-2">
                     <button 
-                      onClick={() => { setSelectedDoc(file); setShowPreview(true); }}
-                      className="p-1.5 rounded-lg hover:bg-kastom-cream"
+                      onClick={() => handleView(doc)}
+                      className="p-1.5 rounded-lg hover:bg-kastom-cream transition-colors"
                       title="View"
                     >
                       <Eye className="w-4 h-4 text-kastom-muted" />
                     </button>
                     <button 
-                      onClick={() => handleDownload(file)}
-                      className="p-1.5 rounded-lg hover:bg-kastom-cream"
+                      onClick={() => handleDownload(doc)}
+                      className="p-1.5 rounded-lg hover:bg-kastom-cream transition-colors"
                       title="Download"
                     >
                       <Download className="w-4 h-4 text-kastom-muted" />
                     </button>
+                    {isWill && doc.checksum && (
+                      <button 
+                        onClick={() => handleVerify(doc)}
+                        className="p-1.5 rounded-lg hover:bg-green-50 transition-colors"
+                        title="Verify"
+                      >
+                        <Shield className="w-4 h-4 text-green-600" />
+                      </button>
+                    )}
                     <button 
-                      onClick={() => handleDelete(file.id, file.type === 'audio' ? 'audio' : 'document')}
-                      className="p-1.5 rounded-lg hover:bg-red-50"
+                      onClick={() => handleDelete(doc)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                       title="Delete"
                     >
                       <Trash2 className="w-4 h-4 text-kastom-danger" />
@@ -360,58 +387,171 @@ function Documents() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filteredFiles.map((file) => {
-            const Icon = getFileIcon(file.fileType);
-            const color = getFileColor(file.fileType);
-
+          {filteredDocs.map((doc) => {
+            const Icon = getFileIcon(doc.fileType);
+            const color = getFileColor(doc.fileType);
+            const isWill = doc.tags?.includes('digital_will');
+            
             return (
-              <div key={file.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-kastom-border/50 hover:border-kastom-green/30 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-5 h-5 ${color}`} />
+              <motion.div
+                key={doc.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center justify-between p-4 bg-white rounded-xl border border-kastom-border/50 hover:border-kastom-green/30 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <Icon className={`w-6 h-6 ${color}`} />
                   <div>
-                    <p className="font-medium text-kastom-dark text-sm">{file.title}</p>
-                    <p className="text-xs text-kastom-muted">{formatSize(file.fileSize || 0)}</p>
+                    <p className="font-medium text-kastom-dark">{doc.title}</p>
+                    <p className="text-sm text-kastom-muted">
+                      {formatSize(doc.fileSize)}
+                      {doc.estate && ` • ${doc.estate.title}`}
+                      {isWill && ' • 📄 Digital Will'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setSelectedDoc(file); setShowPreview(true); }}><Eye className="w-4 h-4 text-kastom-muted" /></button>
-                  <button onClick={() => handleDownload(file)}><Download className="w-4 h-4 text-kastom-muted" /></button>
-                  <button onClick={() => handleDelete(file.id, file.type === 'audio' ? 'audio' : 'document')}><Trash2 className="w-4 h-4 text-kastom-danger" /></button>
+                  <button 
+                    onClick={() => handleView(doc)}
+                    className="p-2 rounded-lg hover:bg-kastom-cream transition-colors"
+                    title="View"
+                  >
+                    <Eye className="w-4 h-4 text-kastom-muted" />
+                  </button>
+                  <button 
+                    onClick={() => handleDownload(doc)}
+                    className="p-2 rounded-lg hover:bg-kastom-cream transition-colors"
+                    title="Download"
+                  >
+                    <Download className="w-4 h-4 text-kastom-muted" />
+                  </button>
+                  {isWill && doc.checksum && (
+                    <button 
+                      onClick={() => handleVerify(doc)}
+                      className="p-2 rounded-lg hover:bg-green-50 transition-colors"
+                      title="Verify"
+                    >
+                      <Shield className="w-4 h-4 text-green-600" />
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleDelete(doc)}
+                    className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4 text-kastom-danger" />
+                  </button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Preview Modal */}
       {showPreview && selectedDoc && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-kastom-dark">{selectedDoc.title}</h2>
-              <button onClick={() => setShowPreview(false)} className="p-2 rounded-lg hover:bg-kastom-cream">
+              <button 
+                onClick={() => setShowPreview(false)}
+                className="p-2 rounded-lg hover:bg-kastom-cream transition-colors"
+              >
                 <X className="w-5 h-5 text-kastom-muted" />
               </button>
             </div>
             <div className="bg-kastom-cream rounded-xl p-4 min-h-[200px] flex items-center justify-center">
-              {selectedDoc.fileType === 'image' ? (
-                <img src={selectedDoc.fileUrl} alt={selectedDoc.title} className="max-w-full max-h-[400px] object-contain" />
-              ) : selectedDoc.fileType === 'pdf' ? (
-                <iframe src={selectedDoc.fileUrl} className="w-full h-[400px]" />
+              {selectedDoc.fileType === 'image' || isImage(selectedDoc) ? (
+                <img 
+                  src={getFileUrl(selectedDoc)} 
+                  alt={selectedDoc.title} 
+                  className="max-w-full max-h-[400px] object-contain"
+                  onError={(e) => {
+                    e.target.alt = 'Image failed to load';
+                  }}
+                />
+              ) : selectedDoc.fileType === 'pdf' || selectedDoc.fileUrl?.endsWith('.pdf') ? (
+                <iframe src={getFileUrl(selectedDoc)} className="w-full h-[400px]" />
               ) : selectedDoc.fileType === 'audio' ? (
-                <audio controls src={selectedDoc.fileUrl} className="w-full" />
+                <audio controls src={getFileUrl(selectedDoc)} className="w-full" />
               ) : (
                 <div className="text-center">
                   <FileText className="w-16 h-16 text-kastom-muted mx-auto" />
                   <p className="text-kastom-muted mt-2">Preview not available</p>
-                  <button onClick={() => handleDownload(selectedDoc)} className="mt-4 btn-primary inline-flex items-center gap-2">
-                    <Download className="w-4 h-4" /> Download
+                  <button 
+                    onClick={() => handleDownload(selectedDoc)}
+                    className="mt-4 btn-primary inline-flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download File
                   </button>
                 </div>
               )}
             </div>
-            {selectedDoc.description && <p className="text-kastom-muted mt-4">{selectedDoc.description}</p>}
+            {selectedDoc.description && (
+              <p className="text-kastom-muted mt-4">{selectedDoc.description}</p>
+            )}
+            {selectedDoc.checksum && (
+              <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
+                <p className="text-sm text-green-700 flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Document is signed and verified
+                </p>
+                <p className="text-xs text-green-600/60 mt-1 font-mono">
+                  Hash: {selectedDoc.checksum.substring(0, 20)}...
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showVerification && verificationResult && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-kastom-dark">Document Verification</h2>
+              <button 
+                onClick={() => {
+                  setShowVerification(false);
+                  setVerificationResult(null);
+                }}
+                className="p-2 rounded-lg hover:bg-kastom-cream transition-colors"
+              >
+                <X className="w-5 h-5 text-kastom-muted" />
+              </button>
+            </div>
+            {verifying ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-12 h-12 text-kastom-green animate-spin mx-auto" />
+                <p className="mt-4 text-kastom-muted">Verifying document integrity...</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                {verificationResult.isValid ? (
+                  <>
+                    <CheckCircle className="w-16 h-16 text-green-600 mx-auto" />
+                    <h3 className="text-xl font-bold text-green-600 mt-4">Document Verified ✓</h3>
+                    <p className="text-kastom-muted mt-2">{verificationResult.message}</p>
+                  </>
+                ) : (
+                  <>
+                    <X className="w-16 h-16 text-red-600 mx-auto" />
+                    <h3 className="text-xl font-bold text-red-600 mt-4">Verification Failed</h3>
+                    <p className="text-kastom-muted mt-2">{verificationResult.message || 'Document has been tampered with'}</p>
+                  </>
+                )}
+                <button
+                  onClick={() => {
+                    setShowVerification(false);
+                    setVerificationResult(null);
+                  }}
+                  className="mt-4 btn-primary w-full"
+                >
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -22,6 +22,10 @@ const adminRoutes = require('./routes/admin.routes');
 const willRoutes = require('./routes/will.routes');
 const documentsRoutes = require('./routes/documents.routes');
 const beneficiaryRoutes = require('./routes/beneficiary.routes');
+const sevisDexRoutes = require('./routes/sevisDex.routes');
+const sevisRoutes = require('./routes/sevis.routes');
+const integrationRoutes = require('./routes/integration.routes');
+
 
 const { errorHandler } = require('./middleware/error.middleware');
 
@@ -76,6 +80,10 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/will', willRoutes);
 app.use('/api/documents', documentsRoutes);
 app.use('/api/beneficiary', beneficiaryRoutes);
+app.use('/api/sevis', sevisDexRoutes);
+app.use('/api/sevis', sevisRoutes);
+app.use('/api/integrations', integrationRoutes);
+
 
 // Error handler
 app.use(errorHandler);
@@ -85,3 +93,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Kastom Ledger Server running on port ${PORT}`);
   console.log(`📊 API URL: http://localhost:${PORT}/api`);
 });
+
+
+
+

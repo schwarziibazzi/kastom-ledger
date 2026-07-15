@@ -14,6 +14,7 @@ exports.getEstates = async (req, res) => {
       include: {
         owner: {
           select: {
+            id: true,
             name: true,
             sevispassUid: true,
             profilePhoto: true
@@ -23,13 +24,14 @@ exports.getEstates = async (req, res) => {
           where: { status: 'active' }
         },
         beneficiaries: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                sevispassUid: true
-              }
-            }
+          where: { userId },
+          select: {
+            id: true,
+            relationship: true,
+            sharePercentage: true,
+            status: true,
+            invitedAt: true,
+            acceptedAt: true
           }
         },
         documents: {
@@ -68,6 +70,7 @@ exports.getEstate = async (req, res) => {
       include: {
         owner: {
           select: {
+            id: true,
             name: true,
             sevispassUid: true,
             profilePhoto: true
@@ -80,6 +83,7 @@ exports.getEstate = async (req, res) => {
           include: {
             user: {
               select: {
+                id: true,
                 name: true,
                 sevispassUid: true
               }
@@ -187,7 +191,12 @@ exports.getDocuments = async (req, res) => {
         estate: {
           select: {
             id: true,
-            title: true
+            title: true,
+            owner: {
+              select: {
+                name: true
+              }
+            }
           }
         }
       },
@@ -212,7 +221,6 @@ exports.getMessages = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Get messages/notifications for beneficiary
     const messages = await prisma.notification.findMany({
       where: {
         userId,
@@ -224,7 +232,12 @@ exports.getMessages = async (req, res) => {
         estate: {
           select: {
             id: true,
-            title: true
+            title: true,
+            owner: {
+              select: {
+                name: true
+              }
+            }
           }
         }
       },

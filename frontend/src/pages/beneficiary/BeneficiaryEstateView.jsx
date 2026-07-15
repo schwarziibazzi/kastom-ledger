@@ -29,7 +29,8 @@ function BeneficiaryEstateView() {
 
   const fetchEstate = async () => {
     try {
-      const response = await api.get(`/beneficiary/estate/${id}`);
+      // Use the estates endpoint with beneficiary check
+      const response = await api.get(`/estates/${id}`);
       setEstate(response.data.estate);
     } catch (error) {
       console.error('Fetch estate error:', error);
@@ -103,6 +104,7 @@ function BeneficiaryEstateView() {
               <span className="text-sm text-kastom-muted">
                 Updated: {formatDate(estate.updatedAt)}
               </span>
+              <span className="text-xs text-blue-600 font-medium">View Only</span>
             </div>
             {estate.description && (
               <p className="text-kastom-muted mt-4 leading-relaxed">{estate.description}</p>
@@ -155,22 +157,28 @@ function BeneficiaryEstateView() {
           <p className="text-kastom-muted text-center py-8">No beneficiaries assigned</p>
         ) : (
           <div className="space-y-2">
-            {estate.beneficiaries.map((beneficiary) => (
-              <div key={beneficiary.id} className="flex items-center justify-between p-3 bg-kastom-cream rounded-xl border border-kastom-border/50">
-                <div>
-                  <p className="font-medium text-kastom-dark">{beneficiary.user?.name}</p>
-                  <p className="text-sm text-kastom-muted">{beneficiary.relationship}</p>
+            {estate.beneficiaries.map((beneficiary) => {
+              const isYou = beneficiary.userId === user?.id;
+              return (
+                <div key={beneficiary.id} className="flex items-center justify-between p-3 bg-kastom-cream rounded-xl border border-kastom-border/50">
+                  <div>
+                    <p className="font-medium text-kastom-dark">
+                      {beneficiary.user?.name || 'Unknown'}
+                      {isYou && <span className="text-xs text-blue-600 ml-2">(You)</span>}
+                    </p>
+                    <p className="text-sm text-kastom-muted">{beneficiary.relationship}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {beneficiary.sharePercentage && (
+                      <span className="text-sm font-medium">{beneficiary.sharePercentage}%</span>
+                    )}
+                    <span className={`badge ${beneficiary.status === 'accepted' ? 'badge-success' : 'badge-pending'}`}>
+                      {beneficiary.status}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {beneficiary.sharePercentage && (
-                    <span className="text-sm font-medium">{beneficiary.sharePercentage}%</span>
-                  )}
-                  <span className={`badge ${beneficiary.status === 'accepted' ? 'badge-success' : 'badge-pending'}`}>
-                    {beneficiary.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
