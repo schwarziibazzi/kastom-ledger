@@ -16,20 +16,34 @@ exports.login = async (req, res) => {
 
     const result = await sevispassService.login(sevispassUid);
     
+    // Ensure role is included in response
+    const userWithRole = await prisma.user.findUnique({
+      where: { sevispassUid: result.user.sevispassUid },
+      select: {
+        id: true,
+        name: true,
+        sevispassUid: true,
+        role: true,
+        province: true,
+        verificationStatus: true
+      }
+    });
+
     // Log to ledger
     await ledgerService.createEntry(
       'USER_LOGIN',
       result.user.sevispassUid,
       {
         user: result.user.name,
-        role: result.user.role,
+        role: userWithRole?.role || 'OWNER',
         timestamp: new Date().toISOString()
       }
     );
 
     res.json({
       success: true,
-      ...result
+      token: result.token,
+      user: userWithRole || result.user
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -110,9 +124,11 @@ exports.getUserRole = async (req, res) => {
       select: { role: true }
     });
 
+    const role = user?.role || 'OWNER';
+    
     res.json({
       success: true,
-      role: user?.role || 'OWNER'
+      role
     });
   } catch (error) {
     console.error('Get user role error:', error);
@@ -157,13 +173,11 @@ exports.signup = async (req, res) => {
   try {
     const { sevispassUid, name, dateOfBirth, province, phone, occupation, role, profilePhoto } = req.body;
 
-    // Check if user already exists
     let user = await prisma.user.findUnique({
       where: { sevispassUid }
     });
 
     if (user) {
-      // Update the user's role if they already exist
       user = await prisma.user.update({
         where: { sevispassUid },
         data: {
@@ -178,7 +192,6 @@ exports.signup = async (req, res) => {
         }
       });
 
-      // Log to ledger
       await ledgerService.createEntry(
         'USER_SIGNUP',
         sevispassUid,
@@ -189,7 +202,6 @@ exports.signup = async (req, res) => {
         }
       );
 
-      // Generate token
       const token = sevispassService.generateToken(user);
 
       return res.status(200).json({
@@ -200,7 +212,6 @@ exports.signup = async (req, res) => {
       });
     }
 
-    // Create new user with role
     user = await prisma.user.create({
       data: {
         sevispassUid,
@@ -215,7 +226,6 @@ exports.signup = async (req, res) => {
       }
     });
 
-    // Log to ledger
     await ledgerService.createEntry(
       'USER_SIGNUP',
       sevispassUid,
@@ -226,7 +236,6 @@ exports.signup = async (req, res) => {
       }
     );
 
-    // Generate token
     const token = sevispassService.generateToken(user);
 
     res.status(201).json({

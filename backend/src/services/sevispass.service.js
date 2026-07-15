@@ -6,6 +6,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // Mock user database for demonstration
+// Mock user database for demonstration
 const mockUsers = {
   'MOCK-UID-001': {
     uid: 'MOCK-UID-001',
@@ -13,7 +14,8 @@ const mockUsers = {
     dateOfBirth: '1985-06-15',
     province: 'National Capital District',
     verificationStatus: 'verified',
-    sevispassUid: 'MOCK-UID-001'
+    sevispassUid: 'MOCK-UID-001',
+    role: 'OWNER'
   },
   'MOCK-UID-002': {
     uid: 'MOCK-UID-002',
@@ -21,7 +23,8 @@ const mockUsers = {
     dateOfBirth: '1990-08-22',
     province: 'Morobe Province',
     verificationStatus: 'verified',
-    sevispassUid: 'MOCK-UID-002'
+    sevispassUid: 'MOCK-UID-002',
+    role: 'BENEFICIARY'
   },
   'MOCK-UID-003': {
     uid: 'MOCK-UID-003',
@@ -29,7 +32,8 @@ const mockUsers = {
     dateOfBirth: '1975-03-10',
     province: 'Eastern Highlands Province',
     verificationStatus: 'verified',
-    sevispassUid: 'MOCK-UID-003'
+    sevispassUid: 'MOCK-UID-003',
+    role: 'WITNESS'
   },
   'MOCK-UID-004': {
     uid: 'MOCK-UID-004',
@@ -37,7 +41,8 @@ const mockUsers = {
     dateOfBirth: '1995-11-28',
     province: 'West New Britain Province',
     verificationStatus: 'verified',
-    sevispassUid: 'MOCK-UID-004'
+    sevispassUid: 'MOCK-UID-004',
+    role: 'BENEFICIARY'
   },
   'MOCK-UID-005': {
     uid: 'MOCK-UID-005',
@@ -45,7 +50,8 @@ const mockUsers = {
     dateOfBirth: '1980-01-01',
     province: 'National Capital District',
     verificationStatus: 'verified',
-    sevispassUid: 'MOCK-UID-005'
+    sevispassUid: 'MOCK-UID-005',
+    role: 'ADMINISTRATOR'
   }
 };
 

@@ -83,6 +83,7 @@ app.use('/api/beneficiary', beneficiaryRoutes);
 app.use('/api/sevis', sevisDexRoutes);
 app.use('/api/sevis', sevisRoutes);
 app.use('/api/integrations', integrationRoutes);
+app.use('/api/admin', adminRoutes);
 
 
 // Error handler

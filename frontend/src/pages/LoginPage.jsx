@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { Shield, User, CheckCircle, ArrowRight } from 'lucide-react';
+import { Shield, User, CheckCircle, ArrowRight, UserCheck, Gift, Crown, Users, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function LoginPage() {
@@ -12,11 +12,11 @@ function LoginPage() {
   const navigate = useNavigate();
 
   const mockUsers = [
-    { uid: 'MOCK-UID-001', name: 'John Kasi', province: 'National Capital District' },
-    { uid: 'MOCK-UID-002', name: 'Mary Wama', province: 'Morobe Province' },
-    { uid: 'MOCK-UID-003', name: 'Peter Tau', province: 'Eastern Highlands Province' },
-    { uid: 'MOCK-UID-004', name: 'Sarah Kila', province: 'West New Britain Province' },
-    { uid: 'MOCK-UID-005', name: 'Admin User', province: 'National Capital District' },
+    { uid: 'MOCK-UID-001', name: 'John Kasi', province: 'National Capital District', role: 'OWNER', icon: Crown },
+    { uid: 'MOCK-UID-002', name: 'Mary Wama', province: 'Morobe Province', role: 'BENEFICIARY', icon: Gift },
+    { uid: 'MOCK-UID-003', name: 'Peter Tau', province: 'Eastern Highlands Province', role: 'WITNESS', icon: UserCheck },
+    { uid: 'MOCK-UID-004', name: 'Sarah Kila', province: 'West New Britain Province', role: 'BENEFICIARY', icon: Gift },
+    { uid: 'MOCK-UID-005', name: 'Admin User', province: 'National Capital District', role: 'ADMINISTRATOR', icon: Shield }
   ];
 
   const handleLogin = async (e) => {
@@ -26,8 +26,23 @@ function LoginPage() {
     try {
       const result = await login(selectedUser);
       if (result.success) {
-        toast.success(`Welcome back, ${result.user.name}`);
-        navigate('/dashboard');
+        toast.success(`Welcome${result.user.role === 'ADMINISTRATOR' ? ' Admin' : ''}, ${result.user.name}!`);
+        const role = result.user.role || 'OWNER';
+        
+        // Role-based redirect
+        switch(role) {
+          case 'ADMINISTRATOR':
+            navigate('/admin');
+            break;
+          case 'BENEFICIARY':
+            navigate('/my-estates');
+            break;
+          case 'WITNESS':
+            navigate('/witness-dashboard');
+            break;
+          default:
+            navigate('/dashboard');
+        }
       } else {
         toast.error(result.error || 'Login failed');
       }
@@ -36,6 +51,20 @@ function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const roleColors = {
+    OWNER: 'text-green-600 bg-green-50',
+    BENEFICIARY: 'text-blue-600 bg-blue-50',
+    WITNESS: 'text-purple-600 bg-purple-50',
+    ADMINISTRATOR: 'text-red-600 bg-red-50'
+  };
+
+  const roleLabels = {
+    OWNER: 'Inheritance Owner',
+    BENEFICIARY: 'Beneficiary',
+    WITNESS: 'Witness',
+    ADMINISTRATOR: 'Administrator'
   };
 
   return (
@@ -72,38 +101,99 @@ function LoginPage() {
               <label className="block text-sm font-medium text-kastom-dark mb-3">
                 Select Your Account
               </label>
-              <div className="space-y-2">
-                {mockUsers.map((user) => (
-                  <label
-                    key={user.uid}
-                    className={`flex items-center p-3 border rounded-xl cursor-pointer transition-all duration-200
-                      ${selectedUser === user.uid
-                        ? 'border-kastom-green bg-kastom-green-bg ring-2 ring-kastom-green/20'
-                        : 'border-kastom-border hover:border-kastom-green/30 hover:bg-kastom-cream'
-                      }`}
-                  >
-                    <input
-                      type="radio"
-                      name="sevispassUid"
-                      value={user.uid}
-                      checked={selectedUser === user.uid}
-                      onChange={(e) => setSelectedUser(e.target.value)}
-                      className="sr-only"
-                    />
-                    <div className="flex items-center flex-1 gap-3">
-                      <div className="w-10 h-10 rounded-full bg-kastom-green/10 flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-kastom-green" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-kastom-dark">{user.name}</p>
-                        <p className="text-sm text-kastom-muted truncate">{user.province}</p>
-                      </div>
-                      {selectedUser === user.uid && (
-                        <CheckCircle className="w-5 h-5 text-kastom-green flex-shrink-0" />
-                      )}
-                    </div>
-                  </label>
-                ))}
+              
+              {/* Regular Users Section */}
+              <div className="mb-4">
+                <p className="text-xs text-kastom-muted/60 uppercase tracking-wider mb-2">Regular Users</p>
+                <div className="space-y-2">
+                  {mockUsers.filter(u => u.role !== 'ADMINISTRATOR').map((user) => {
+                    const RoleIcon = user.icon;
+                    return (
+                      <label
+                        key={user.uid}
+                        className={`flex items-center p-3 border rounded-xl cursor-pointer transition-all duration-200
+                          ${selectedUser === user.uid
+                            ? 'border-kastom-green bg-kastom-green-bg ring-2 ring-kastom-green/20'
+                            : 'border-kastom-border hover:border-kastom-green/30 hover:bg-kastom-cream'
+                          }`}
+                      >
+                        <input
+                          type="radio"
+                          name="sevispassUid"
+                          value={user.uid}
+                          checked={selectedUser === user.uid}
+                          onChange={(e) => setSelectedUser(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="flex items-center flex-1 gap-3">
+                          <div className="w-10 h-10 rounded-full bg-kastom-green/10 flex items-center justify-center flex-shrink-0">
+                            <User className="w-5 h-5 text-kastom-green" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-kastom-dark">{user.name}</p>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${roleColors[user.role]}`}>
+                                <RoleIcon className="w-3 h-3 inline mr-0.5" />
+                                {roleLabels[user.role]}
+                              </span>
+                            </div>
+                            <p className="text-sm text-kastom-muted truncate">{user.province}</p>
+                          </div>
+                          {selectedUser === user.uid && (
+                            <CheckCircle className="w-5 h-5 text-kastom-green flex-shrink-0" />
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Admin Section */}
+              <div>
+                <p className="text-xs text-kastom-muted/60 uppercase tracking-wider mb-2">Administrator</p>
+                <div className="space-y-2">
+                  {mockUsers.filter(u => u.role === 'ADMINISTRATOR').map((user) => {
+                    const RoleIcon = user.icon;
+                    return (
+                      <label
+                        key={user.uid}
+                        className={`flex items-center p-3 border rounded-xl cursor-pointer transition-all duration-200
+                          ${selectedUser === user.uid
+                            ? 'border-red-500 bg-red-50 ring-2 ring-red-500/20'
+                            : 'border-kastom-border hover:border-red-300 hover:bg-red-50/30'
+                          }`}
+                      >
+                        <input
+                          type="radio"
+                          name="sevispassUid"
+                          value={user.uid}
+                          checked={selectedUser === user.uid}
+                          onChange={(e) => setSelectedUser(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="flex items-center flex-1 gap-3">
+                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <Shield className="w-5 h-5 text-red-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-kastom-dark">{user.name}</p>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                <Settings className="w-3 h-3 inline mr-0.5" />
+                                Administrator
+                              </span>
+                            </div>
+                            <p className="text-sm text-kastom-muted truncate">{user.province}</p>
+                          </div>
+                          {selectedUser === user.uid && (
+                            <CheckCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

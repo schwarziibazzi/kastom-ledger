@@ -59,6 +59,28 @@ import Documents from './pages/Documents';
 import Profile from './pages/Profile';
 import ClaimInvitation from './pages/ClaimInvitation';
 
+// Role-based redirect component
+function RoleRedirect() {
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  
+  if (!user) return <Navigate to="/login" replace />;
+  
+  const role = user.role || 'OWNER';
+  
+  switch(role) {
+    case 'ADMINISTRATOR':
+      return <Navigate to="/admin" replace />;
+    case 'BENEFICIARY':
+      return <Navigate to="/my-estates" replace />;
+    case 'WITNESS':
+      return <Navigate to="/witness-dashboard" replace />;
+    default:
+      return <Navigate to="/dashboard" replace />;
+  }
+}
+
 function App() {
   const { loading } = useAuth();
 
@@ -111,6 +133,8 @@ function App() {
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<RoleRedirect />} />
+            
             <Route element={<RoleBasedLayout />}>
               {/* Common Routes */}
               <Route path="/search" element={<SearchPage />} />

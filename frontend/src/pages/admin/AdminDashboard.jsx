@@ -4,18 +4,22 @@ import { useRole } from '../../contexts/RoleProvider';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { 
-  LayoutDashboard, 
   Users, 
   Shield, 
   Activity, 
   FileBarChart,
   CheckCircle,
   Clock,
-  AlertTriangle,
   TrendingUp,
   UserCheck,
   FileText,
-  Search
+  Search,
+  Database,
+  Link,
+  Settings,
+  Bell,
+  AlertCircle,
+  BarChart3
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -29,7 +33,9 @@ function AdminDashboard() {
     pendingVerifications: 0,
     totalLedgerEntries: 0,
     activeUsers: 0,
-    totalDocuments: 0
+    totalDocuments: 0,
+    connectedIntegrations: 0,
+    pendingSyncs: 0
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
@@ -106,6 +112,10 @@ function AdminDashboard() {
               <Search className="w-4 h-4" />
               Search Users
             </button>
+            <button className="btn-primary inline-flex items-center gap-2 text-sm">
+              <Settings className="w-4 h-4" />
+              System Settings
+            </button>
           </div>
         </div>
       </motion.div>
@@ -166,12 +176,50 @@ function AdminDashboard() {
         </div>
       </motion.div>
 
+      {/* Quick Actions - Admin Only */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid md:grid-cols-3 gap-4 mb-8"
+      >
+        <Link to="/users" className="card card-hover border-2 border-dashed border-blue-200 hover:border-blue-400 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-kastom-dark">User Management</h3>
+              <p className="text-sm text-kastom-muted">Manage all users</p>
+            </div>
+            <Users className="w-5 h-5 text-blue-600" />
+          </div>
+        </Link>
+
+        <Link to="/integrations" className="card card-hover border-2 border-dashed border-purple-200 hover:border-purple-400 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-kastom-dark">Government Integrations</h3>
+              <p className="text-sm text-kastom-muted">Manage service connections</p>
+            </div>
+            <Database className="w-5 h-5 text-purple-600" />
+          </div>
+        </Link>
+
+        <Link to="/logs" className="card card-hover border-2 border-dashed border-green-200 hover:border-green-400 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-kastom-dark">Activity Logs</h3>
+              <p className="text-sm text-kastom-muted">View system activity</p>
+            </div>
+            <Activity className="w-5 h-5 text-green-600" />
+          </div>
+        </Link>
+      </motion.div>
+
       <div className="grid md:grid-cols-2 gap-6">
         {/* Recent Activity */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.3 }}
           className="card"
         >
           <h2 className="text-lg font-semibold text-kastom-dark mb-4">Recent Activity</h2>
@@ -200,7 +248,7 @@ function AdminDashboard() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.4 }}
           className="card"
         >
           <h2 className="text-lg font-semibold text-kastom-dark mb-4">Pending Reviews</h2>

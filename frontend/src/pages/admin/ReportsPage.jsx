@@ -12,7 +12,8 @@ import {
   PieChart,
   BarChart3,
   ArrowRight,
-  Filter
+  Filter,
+  Activity
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 

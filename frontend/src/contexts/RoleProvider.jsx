@@ -13,7 +13,15 @@ export function RoleProvider({ children }) {
 
   useEffect(() => {
     if (user) {
-      fetchRole();
+      // First check if user object already has role
+      if (user.role) {
+        setRole(user.role);
+        setMenuItems(getMenuItems(user.role));
+        setPermissions(getPermissions(user.role));
+        setLoading(false);
+      } else {
+        fetchRole();
+      }
     } else {
       setRole('OWNER');
       setLoading(false);
