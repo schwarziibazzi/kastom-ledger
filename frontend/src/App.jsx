@@ -15,6 +15,8 @@ import SignUpPage from './pages/SignUpPage';
 import SearchPage from './pages/SearchPage';
 import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
+import FAQPage from './pages/FAQPage';
+import QRCodeLogin from './components/QRCodeLogin';
 
 // Pages - Owner
 import OwnerDashboard from './pages/owner/OwnerDashboard';
@@ -52,6 +54,7 @@ import ActivityLogsPage from './pages/admin/ActivityLogsPage';
 import AuditPage from './pages/admin/AuditPage';
 import ReportsPage from './pages/admin/ReportsPage';
 import GovernmentIntegrations from './pages/admin/GovernmentIntegrations';
+import AdminLoginPage from './pages/AdminLoginPage';
 
 // Legacy Pages
 import Ledger from './pages/Ledger';
@@ -59,27 +62,8 @@ import Documents from './pages/Documents';
 import Profile from './pages/Profile';
 import ClaimInvitation from './pages/ClaimInvitation';
 
-// Role-based redirect component
-function RoleRedirect() {
-  const { user, loading } = useAuth();
-  
-  if (loading) return null;
-  
-  if (!user) return <Navigate to="/login" replace />;
-  
-  const role = user.role || 'OWNER';
-  
-  switch(role) {
-    case 'ADMINISTRATOR':
-      return <Navigate to="/admin" replace />;
-    case 'BENEFICIARY':
-      return <Navigate to="/my-estates" replace />;
-    case 'WITNESS':
-      return <Navigate to="/witness-dashboard" replace />;
-    default:
-      return <Navigate to="/dashboard" replace />;
-  }
-}
+// Components
+import Chatbot from './components/Chatbot';
 
 function App() {
   const { loading } = useAuth();
@@ -129,12 +113,12 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/claim/:token" element={<ClaimInvitation />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<RoleRedirect />} />
-            
             <Route element={<RoleBasedLayout />}>
               {/* Common Routes */}
               <Route path="/search" element={<SearchPage />} />
@@ -190,6 +174,7 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+        <Chatbot />
       </RoleProvider>
     </>
   );

@@ -82,8 +82,7 @@ function SignUpPage() {
     { uid: 'MOCK-UID-001', name: 'John Kasi', province: 'National Capital District' },
     { uid: 'MOCK-UID-002', name: 'Mary Wama', province: 'Morobe Province' },
     { uid: 'MOCK-UID-003', name: 'Peter Tau', province: 'Eastern Highlands Province' },
-    { uid: 'MOCK-UID-004', name: 'Sarah Kila', province: 'West New Britain Province' },
-    { uid: 'MOCK-UID-005', name: 'Admin User', province: 'National Capital District' }
+    { uid: 'MOCK-UID-004', name: 'Sarah Kila', province: 'West New Britain Province' }
   ];
 
   const handleNext = () => {
@@ -114,7 +113,6 @@ function SignUpPage() {
       const result = await signup(formData);
       if (result.success) {
         toast.success(`Welcome, ${result.user.name}!`);
-        // Navigate based on role
         const role = result.user.role || formData.role;
         switch(role) {
           case 'BENEFICIARY':

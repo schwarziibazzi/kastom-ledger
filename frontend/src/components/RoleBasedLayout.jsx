@@ -30,7 +30,9 @@ import {
   XCircle,
   AlertCircle,
   Database,
-  Link as LinkIcon
+  Link as LinkIcon,
+  HelpCircle,
+  Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -54,7 +56,9 @@ const iconMap = {
   'XCircle': XCircle,
   'AlertCircle': AlertCircle,
   'Database': Database,
-  'Link': LinkIcon
+  'Link': LinkIcon,
+  'HelpCircle': HelpCircle,
+  'Bot': Bot
 };
 
 function RoleBasedLayout() {
@@ -116,6 +120,62 @@ function RoleBasedLayout() {
 
   const RoleIcon = getRoleIcon();
 
+  // Get updated menu items based on role
+  const getMenuItemsForRole = () => {
+    if (isOwner) {
+      return [
+        { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
+        { label: 'My Estate', path: '/estate', icon: 'Home' },
+        { label: 'Asset Registry', path: '/assets', icon: 'Package' },
+        { label: 'Beneficiaries', path: '/beneficiaries', icon: 'Users' },
+        { label: 'Digital Will', path: '/will', icon: 'FileText' },
+        { label: 'Witness Requests', path: '/witness-requests', icon: 'UserCheck' },
+        { label: 'Ledger Timeline', path: '/ledger', icon: 'Clock' },
+        { label: 'Documents', path: '/documents', icon: 'FolderOpen' },
+        { label: 'Connected Services', path: '/connected-services', icon: 'Link' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' },
+        { label: 'Settings', path: '/settings', icon: 'Settings' }
+      ];
+    }
+    
+    if (isBeneficiary) {
+      return [
+        { label: 'Dashboard', path: '/my-estates', icon: 'LayoutDashboard' },
+        { label: 'My Inherited Estates', path: '/my-estates', icon: 'Gift' },
+        { label: 'Inherited Assets', path: '/inherited-assets', icon: 'Package' },
+        { label: 'Documents', path: '/beneficiary/documents', icon: 'FolderOpen' },
+        { label: 'Messages', path: '/messages', icon: 'MessageSquare' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' }
+      ];
+    }
+    
+    if (isWitness) {
+      return [
+        { label: 'Dashboard', path: '/witness-dashboard', icon: 'LayoutDashboard' },
+        { label: 'Pending Reviews', path: '/witness-requests', icon: 'Clock' },
+        { label: 'Approved', path: '/witness-approved', icon: 'CheckCircle' },
+        { label: 'Rejected', path: '/witness-rejected', icon: 'XCircle' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' }
+      ];
+    }
+    
+    if (isAdmin) {
+      return [
+        { label: 'Dashboard', path: '/admin', icon: 'LayoutDashboard' },
+        { label: 'Users', path: '/users', icon: 'Users' },
+        { label: 'Activity Logs', path: '/logs', icon: 'Activity' },
+        { label: 'Audit', path: '/audit', icon: 'Shield' },
+        { label: 'Reports', path: '/reports', icon: 'FileBarChart' },
+        { label: 'Government Integrations', path: '/integrations', icon: 'Database' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' }
+      ];
+    }
+    
+    return [];
+  };
+
+  const displayMenuItems = getMenuItemsForRole();
+
   return (
     <div className="min-h-screen bg-kastom-cream">
       {/* Mobile Menu Overlay */}
@@ -164,7 +224,7 @@ function RoleBasedLayout() {
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 overflow-y-auto">
             <div className="space-y-1">
-              {menuItems.map((item) => {
+              {displayMenuItems.map((item) => {
                 const IconComponent = iconMap[item.icon] || LayoutDashboard;
                 return (
                   <NavLink
@@ -225,7 +285,7 @@ function RoleBasedLayout() {
               </button>
               <div className="hidden lg:block">
                 <h2 className="text-xl font-semibold text-kastom-dark tracking-tight">
-                  {menuItems.find(item => window.location.pathname.includes(item.path))?.label || 'Dashboard'}
+                  {displayMenuItems.find(item => window.location.pathname.includes(item.path))?.label || 'Dashboard'}
                 </h2>
               </div>
             </div>

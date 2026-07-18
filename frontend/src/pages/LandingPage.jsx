@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Users, Clock, ArrowRight, Heart, CheckCircle } from 'lucide-react';
+import { Shield, Users, Clock, ArrowRight, Heart, HelpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function LandingPage() {
@@ -22,6 +22,10 @@ function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Link to="/faq" className="text-sm text-kastom-muted hover:text-kastom-dark transition-colors flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4" />
+              FAQ
+            </Link>
             <Link to="/signup" className="btn-secondary text-sm">
               Create Account
             </Link>
@@ -38,7 +42,7 @@ function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero */}
+      {/* Hero - Rest of the page remains the same */}
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-5xl mx-auto text-center">
           <motion.div
@@ -70,7 +74,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features - Rest remains the same */}
       <section className="py-20 px-4 bg-white border-y border-kastom-border/50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-kastom-dark mb-12">
@@ -147,6 +151,14 @@ function LandingPage() {
       {/* Footer */}
       <footer className="bg-white border-t border-kastom-border/50 py-8 px-4">
         <div className="max-w-6xl mx-auto text-center">
+          <div className="flex flex-wrap items-center justify-center gap-6 mb-4 text-sm text-kastom-muted">
+            <Link to="/faq" className="hover:text-kastom-dark transition-colors flex items-center gap-1">
+              <HelpCircle className="w-4 h-4" />
+              FAQ
+            </Link>
+            <Link to="/login" className="hover:text-kastom-dark transition-colors">Login</Link>
+            <Link to="/signup" className="hover:text-kastom-dark transition-colors">Create Account</Link>
+          </div>
           <p className="text-sm text-kastom-muted">
             © 2026 Kastom Ledger. Preserving PNG's digital legacy.
           </p>

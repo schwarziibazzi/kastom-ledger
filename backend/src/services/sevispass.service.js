@@ -15,7 +15,8 @@ const mockUsers = {
     province: 'National Capital District',
     verificationStatus: 'verified',
     sevispassUid: 'MOCK-UID-001',
-    role: 'OWNER'
+    role: 'OWNER',
+    sevisDid: '7825156201091271'
   },
   'MOCK-UID-002': {
     uid: 'MOCK-UID-002',

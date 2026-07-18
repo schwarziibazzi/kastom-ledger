@@ -58,6 +58,7 @@ export function RoleProvider({ children }) {
         { label: 'Ledger Timeline', path: '/ledger', icon: 'Clock' },
         { label: 'Documents', path: '/documents', icon: 'FolderOpen' },
         { label: 'Connected Services', path: '/connected-services', icon: 'Link' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' },
         { label: 'Settings', path: '/settings', icon: 'Settings' }
       ],
       BENEFICIARY: [
@@ -65,13 +66,15 @@ export function RoleProvider({ children }) {
         { label: 'My Inherited Estates', path: '/my-estates', icon: 'Gift' },
         { label: 'Inherited Assets', path: '/inherited-assets', icon: 'Package' },
         { label: 'Documents', path: '/beneficiary/documents', icon: 'FolderOpen' },
-        { label: 'Messages', path: '/messages', icon: 'MessageSquare' }
+        { label: 'Messages', path: '/messages', icon: 'MessageSquare' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' }
       ],
       WITNESS: [
         { label: 'Dashboard', path: '/witness-dashboard', icon: 'LayoutDashboard' },
         { label: 'Pending Reviews', path: '/witness-requests', icon: 'Clock' },
         { label: 'Approved', path: '/witness-approved', icon: 'CheckCircle' },
-        { label: 'Rejected', path: '/witness-rejected', icon: 'XCircle' }
+        { label: 'Rejected', path: '/witness-rejected', icon: 'XCircle' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' }
       ],
       ADMINISTRATOR: [
         { label: 'Dashboard', path: '/admin', icon: 'LayoutDashboard' },
@@ -79,7 +82,8 @@ export function RoleProvider({ children }) {
         { label: 'Activity Logs', path: '/logs', icon: 'Activity' },
         { label: 'Audit', path: '/audit', icon: 'Shield' },
         { label: 'Reports', path: '/reports', icon: 'FileBarChart' },
-        { label: 'Government Integrations', path: '/integrations', icon: 'Database' }
+        { label: 'Government Integrations', path: '/integrations', icon: 'Database' },
+        { label: 'FAQ', path: '/faq', icon: 'HelpCircle' }
       ]
     };
     return menus[role] || menus.OWNER;
@@ -96,7 +100,8 @@ export function RoleProvider({ children }) {
         canManageWitnesses: true,
         canViewTimeline: true,
         canEditWill: true,
-        canViewConnectedServices: true
+        canViewConnectedServices: true,
+        canViewFAQ: true
       },
       BENEFICIARY: {
         canViewEstates: true,
@@ -106,19 +111,22 @@ export function RoleProvider({ children }) {
         canEditEstate: false,
         canManageAssets: false,
         canManageBeneficiaries: false,
-        canEditWill: false
+        canEditWill: false,
+        canViewFAQ: true
       },
       WITNESS: {
         canViewRequests: true,
         canApproveRequests: true,
-        canRejectRequests: true
+        canRejectRequests: true,
+        canViewFAQ: true
       },
       ADMINISTRATOR: {
         canManageUsers: true,
         canViewAuditLogs: true,
         canViewSystemStats: true,
         canVerifyRequests: true,
-        canManageIntegrations: true
+        canManageIntegrations: true,
+        canViewFAQ: true
       }
     };
     return permissionsMap[role] || permissionsMap.OWNER;

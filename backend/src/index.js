@@ -25,7 +25,8 @@ const beneficiaryRoutes = require('./routes/beneficiary.routes');
 const sevisDexRoutes = require('./routes/sevisDex.routes');
 const sevisRoutes = require('./routes/sevis.routes');
 const integrationRoutes = require('./routes/integration.routes');
-
+const chatbotRoutes = require('./routes/chatbot.routes');
+const oidc4vpRoutes = require('./routes/oidc4vp.routes');
 
 const { errorHandler } = require('./middleware/error.middleware');
 
@@ -84,6 +85,8 @@ app.use('/api/sevis', sevisDexRoutes);
 app.use('/api/sevis', sevisRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/oidc4vp', oidc4vpRoutes);
 
 
 // Error handler

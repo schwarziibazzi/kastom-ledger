@@ -190,7 +190,7 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-// Get audit logs
+// Get audit logs - FIXED
 exports.getAudit = async (req, res) => {
   try {
     if (req.user.role !== 'ADMINISTRATOR') {
@@ -219,14 +219,24 @@ exports.getAudit = async (req, res) => {
       entityType: entry.actionType.split('_')[0] || 'System',
       entityId: entry.metadata?.estateId || entry.metadata?.assetId || 'N/A',
       hash: entry.currentHash,
-      status: 'verified',
+      status: entry.currentHash ? 'verified' : 'pending',
       createdAt: entry.timestamp,
       user: entry.user
     }));
 
+    // Get stats - FIXED: use findMany to count properly
+    const allEntries = await prisma.ledgerEntry.findMany({
+      select: {
+        currentHash: true
+      }
+    });
+
+    const total = allEntries.length;
+    const verified = allEntries.filter(e => e.currentHash !== null && e.currentHash !== undefined).length;
+
     const stats = {
-      total: await prisma.ledgerEntry.count(),
-      verified: await prisma.ledgerEntry.count({ where: { currentHash: { not: null } } }),
+      total,
+      verified,
       suspicious: 0,
       needsReview: 0
     };
