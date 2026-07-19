@@ -16,7 +16,7 @@ const mockUsers = {
     verificationStatus: 'verified',
     sevispassUid: 'MOCK-UID-001',
     role: 'OWNER',
-    sevisDid: '7825156201091271'
+    sevisDid: 'did:sevis:pngext1:7825156201091271'
   },
   'MOCK-UID-002': {
     uid: 'MOCK-UID-002',
